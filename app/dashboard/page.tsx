@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useAuth } from "@/app/context/AuthContext";
 import { useRouter } from "next/navigation";
 import {
@@ -10,6 +10,7 @@ import {
   saveSellerProduct,
   deleteSellerProduct,
   getAllCategories,
+  saveAllCategories,
   getOrdersForSeller,
   updateOrderStatus,
   getStoreSettings,
@@ -17,6 +18,7 @@ import {
   type Order,
   type OrderStatus,
   type StoreSettings,
+  type Category,
 } from "@/lib/data";
 
 const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
@@ -38,6 +40,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("overview");
   const [products, setProducts] = useState<SellerProduct[]>([]);
+  const [cats, setCats] = useState<Category[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [productForm, setProductForm] = useState({
     name: "",
@@ -67,17 +70,21 @@ export default function DashboardPage() {
     storeAddress: "",
   });
 
+  const loadData = useCallback(async () => {
+    setProducts(await getSellerProducts());
+    setCats(await getAllCategories());
+    if (mobile) {
+      setOrders(await getOrdersForSeller(mobile));
+      setSettings(await getStoreSettings(mobile));
+    }
+  }, [mobile]);
+
   useEffect(() => {
     if (!loggedIn) { router.replace("/login"); return; }
     if (role !== "seller") { router.replace("/"); return; }
-    setProducts(getSellerProducts());
-    if (mobile) {
-      setOrders(getOrdersForSeller(mobile));
-      setSettings(getStoreSettings(mobile));
-    }
-  }, [loggedIn, role, router, mobile]);
+    loadData();
+  }, [loggedIn, role, router, loadData]);
 
-  const cats = getAllCategories();
   const totalEarnings = useMemo(() =>
     orders.filter((o) => o.status === "delivered").reduce((sum, o) => sum + o.total, 0),
     [orders]
@@ -86,8 +93,6 @@ export default function DashboardPage() {
 
   if (!loggedIn || role !== "seller") return null;
 
-  /* ── Product helpers ──────────────────────────────── */
-
   function resetProductForm() {
     setProductForm({ name: "", description: "", price: "", mrp: "", category: "Grocery", unit: "1 kg", img: "", videos: "", brand: "", stock: "100", sku: "", tags: "", highlights: "" });
     setImgPreview(null);
@@ -95,7 +100,7 @@ export default function DashboardPage() {
     setEditingId(null);
   }
 
-  function handleProductSubmit(e: React.FormEvent) {
+  async function handleProductSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!productForm.name.trim() || !productForm.price || !productForm.mrp) return;
 
@@ -120,8 +125,14 @@ export default function DashboardPage() {
       createdAt: editingId ? (products.find((p) => p.id === editingId)?.createdAt || new Date().toISOString()) : new Date().toISOString(),
     };
 
-    saveSellerProduct(product);
-    setProducts(getSellerProducts());
+    await saveSellerProduct(product);
+
+    const existingCats = await getAllCategories();
+    if (!existingCats.some((c) => c.name === product.category)) {
+      await saveAllCategories([...existingCats, { name: product.category, icon: "custom" }]);
+    }
+
+    await loadData();
     resetProductForm();
     setTab("products");
   }
@@ -148,21 +159,19 @@ export default function DashboardPage() {
     setTab("products");
   }
 
-  function handleDeleteProduct(id: string) {
+  async function handleDeleteProduct(id: string) {
     if (!confirm("Delete this product?")) return;
-    deleteSellerProduct(id);
-    setProducts(getSellerProducts());
+    await deleteSellerProduct(id);
+    await loadData();
   }
 
-  function toggleAvailability(id: string) {
+  async function toggleAvailability(id: string) {
     const p = products.find((x) => x.id === id);
     if (!p) return;
     p.available = !p.available;
-    saveSellerProduct(p);
-    setProducts(getSellerProducts());
+    await saveSellerProduct(p);
+    await loadData();
   }
-
-  /* ── File upload handlers ──────────────────────────── */
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -173,9 +182,7 @@ export default function DashboardPage() {
     setImgPreview(data);
   }
 
-  function handleRemoveImage() {
-    setImgPreview(null);
-  }
+  function handleRemoveImage() { setImgPreview(null); }
 
   async function handleVideoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
@@ -191,20 +198,14 @@ export default function DashboardPage() {
     setVideoFiles(newVideos);
   }
 
-  function handleRemoveVideo(index: number) {
-    setVideoFiles((prev) => prev.filter((_, i) => i !== index));
+  function handleRemoveVideo(index: number) { setVideoFiles((prev) => prev.filter((_, i) => i !== index)); }
+
+  async function handleOrderStatusChange(orderId: string, status: OrderStatus) {
+    await updateOrderStatus(orderId, status);
+    await loadData();
   }
 
-  /* ── Order helpers ────────────────────────────────── */
-
-  function handleOrderStatus(orderId: string, status: OrderStatus) {
-    updateOrderStatus(orderId, status);
-    if (mobile) setOrders(getOrdersForSeller(mobile));
-  }
-
-  /* ── Seed Demo Data ──────────────────────────────── */
-
-  function seedDemoData() {
+  async function seedDemoData() {
     if (!mobile) return;
     const demoProducts: SellerProduct[] = [
       { id: `demo_${Date.now()}_1`, name: "Fresh Apples", description: "Crisp and juicy red apples directly from Himachal orchards.", price: 99, mrp: 140, img: "/product_atta.png", videos: [], category: "Grocery", unit: "1 kg", brand: "HimFresh", stock: 50, sku: "FRU-APP-001", tags: ["organic", "fresh", "apple"], highlights: ["Farm fresh", "Juicy & crispy", "Himachal apples"], sellerMobile: mobile, sellerName: name || "Demo Seller", available: true, createdAt: new Date().toISOString() },
@@ -214,46 +215,30 @@ export default function DashboardPage() {
       { id: `demo_${Date.now()}_5`, name: "Herbal Shampoo 200ml", description: "Natural herbal shampoo with aloe vera and neem.", price: 129, mrp: 175, img: "/category_dairy.png", videos: [], category: "Personal Care", unit: "200 ml", brand: "Herbals", stock: 40, sku: "HBC-SHM-001", tags: ["herbal", "shampoo", "natural"], highlights: ["Aloe vera & neem", "Chemical-free", "All hair types"], sellerMobile: mobile, sellerName: name || "Demo Seller", available: true, createdAt: new Date().toISOString() },
       { id: `demo_${Date.now()}_6`, name: "Cold Pressed Coconut Oil 500ml", description: "Pure cold-pressed virgin coconut oil for cooking and skin.", price: 199, mrp: 250, img: "/category_dairy.png", videos: [], category: "Oil & Ghee", unit: "500 ml", brand: "CocoPure", stock: 20, sku: "OIL-CCN-001", tags: ["cold-pressed", "coconut", "virgin"], highlights: ["Cold-pressed", "Virgin quality", "Multi-purpose"], sellerMobile: mobile, sellerName: name || "Demo Seller", available: true, createdAt: new Date().toISOString() },
     ];
-    demoProducts.forEach((p) => saveSellerProduct(p));
-    saveStoreSettings(mobile, { storeName: `${name || "Demo"}'s Kirana Store`, storeDescription: "Welcome to our store! We offer fresh groceries, spices, and daily essentials at the best prices.", storeLogo: "/product_atta.png", deliveryRadius: "15", returnPolicy: "7-day easy returns", upiId: "demo@sbi", storeAddress: "123, Main Road, New Delhi" });
-    setProducts(getSellerProducts());
-    if (mobile) setOrders(getOrdersForSeller(mobile));
-    setSettings(getStoreSettings(mobile));
+    for (const p of demoProducts) await saveSellerProduct(p);
+    await saveStoreSettings(mobile, { storeName: `${name || "Demo"}'s Kirana Store`, storeDescription: "Welcome to our store! We offer fresh groceries, spices, and daily essentials at the best prices.", storeLogo: "/product_atta.png", deliveryRadius: "15", returnPolicy: "7-day easy returns", upiId: "demo@sbi", storeAddress: "123, Main Road, New Delhi" });
+    await loadData();
   }
 
   const statusColors: Record<OrderStatus, string> = {
-    pending: "#fef3c7",
-    confirmed: "#e0e7ff",
-    shipped: "#dbeafe",
-    delivered: "#d1fae5",
-    cancelled: "#fef2f2",
+    pending: "#fef3c7", confirmed: "#e0e7ff", shipped: "#dbeafe", delivered: "#d1fae5", cancelled: "#fef2f2",
   };
 
-  /* ── Settings helpers ─────────────────────────────── */
-
-  function handleSettingsSave(e: React.FormEvent) {
+  async function handleSettingsSave(e: React.FormEvent) {
     e.preventDefault();
     if (!mobile) return;
-    saveStoreSettings(mobile, settings);
+    await saveStoreSettings(mobile, settings);
     alert("Store settings saved!");
   }
-
-  /* ── Tab switcher ─────────────────────────────────── */
 
   function TabBtn({ id, label }: { id: Tab; label: string }) {
     return (
       <button
         onClick={() => { if (id === "products") resetProductForm(); setTab(id); }}
         style={{
-          padding: "10px 18px",
-          borderRadius: 8,
-          border: "none",
-          fontWeight: 800,
-          fontSize: 13,
-          cursor: "pointer",
-          background: tab === id ? "var(--color-primary)" : "#e5e7eb",
-          color: tab === id ? "white" : "#374151",
-          whiteSpace: "nowrap",
+          padding: "10px 18px", borderRadius: 8, border: "none", fontWeight: 800, fontSize: 13,
+          cursor: "pointer", background: tab === id ? "var(--color-primary)" : "#e5e7eb",
+          color: tab === id ? "white" : "#374151", whiteSpace: "nowrap",
         }}
       >
         {label}
@@ -303,7 +288,6 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* ── TAB: Overview ────────────────────────────── */}
         {tab === "overview" && (
           <div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 20 }}>
@@ -351,7 +335,6 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* ── TAB: Products (Add + List) ───────────────── */}
         {tab === "products" && (
           <div>
             <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
@@ -458,9 +441,9 @@ export default function DashboardPage() {
                         <div key={p.id} style={{ display: "flex", gap: 16, alignItems: "center", background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 12, padding: 16 }}>
                           <img src={p.img} alt={p.name} style={{ width: 64, height: 64, borderRadius: 8, objectFit: "cover", background: "#f3f4f6" }} />
                           <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 800, fontSize: 15 }}>{p.name}</div>
-                        <div style={{ fontSize: 13, color: "var(--color-text-secondary)", fontWeight: 700 }}>₹{p.price} <span style={{ textDecoration: "line-through", color: "#9ca3af" }}>₹{p.mrp}</span> {discount > 0 && <span style={{ color: "var(--color-primary)" }}>{discount}% off</span>}</div>
-                        <div style={{ fontSize: 12, color: "var(--color-text-muted)", fontWeight: 700 }}>{p.brand ? `${p.brand} · ` : ""}{p.category} · {p.unit} · Stock: {p.stock} · {p.available ? "Available" : "Hidden"}</div>
+                            <div style={{ fontWeight: 800, fontSize: 15 }}>{p.name}</div>
+                            <div style={{ fontSize: 13, color: "var(--color-text-secondary)", fontWeight: 700 }}>₹{p.price} <span style={{ textDecoration: "line-through", color: "#9ca3af" }}>₹{p.mrp}</span> {discount > 0 && <span style={{ color: "var(--color-primary)" }}>{discount}% off</span>}</div>
+                            <div style={{ fontSize: 12, color: "var(--color-text-muted)", fontWeight: 700 }}>{p.brand ? `${p.brand} · ` : ""}{p.category} · {p.unit} · Stock: {p.stock} · {p.available ? "Available" : "Hidden"}</div>
                           </div>
                           <div style={{ display: "flex", gap: 6 }}>
                             <button onClick={() => toggleAvailability(p.id)} style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid var(--color-border)", background: p.available ? "#fef3c7" : "#d1fae5", fontWeight: 800, fontSize: 12, cursor: "pointer" }}>{p.available ? "Hide" : "Show"}</button>
@@ -567,7 +550,6 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* ── TAB: Orders ──────────────────────────────── */}
         {tab === "orders" && (
           <div>
             {orders.length === 0 ? (
@@ -610,17 +592,12 @@ export default function DashboardPage() {
                       {(["pending", "confirmed", "shipped", "delivered", "cancelled"] as OrderStatus[]).map((s) => (
                         <button
                           key={s}
-                          onClick={() => handleOrderStatus(o.id, s)}
+                          onClick={() => handleOrderStatusChange(o.id, s)}
                           style={{
-                            padding: "6px 14px",
-                            borderRadius: 6,
+                            padding: "6px 14px", borderRadius: 6,
                             border: o.status === s ? "2px solid #1f2937" : "1px solid var(--color-border)",
-                            background: statusColors[s],
-                            fontWeight: 800,
-                            fontSize: 12,
-                            cursor: "pointer",
-                            color: "#374151",
-                            opacity: o.status === s ? 1 : 0.7,
+                            background: statusColors[s], fontWeight: 800, fontSize: 12,
+                            cursor: "pointer", color: "#374151", opacity: o.status === s ? 1 : 0.7,
                           }}
                         >
                           {s}
@@ -634,7 +611,6 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* ── TAB: Store Settings ──────────────────────── */}
         {tab === "settings" && (
           <form onSubmit={handleSettingsSave} style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 12, padding: 24 }}>
             <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 16 }}>Store Settings</h2>

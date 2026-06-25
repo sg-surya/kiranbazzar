@@ -1,9 +1,9 @@
 "use client";
 
-import React, { use } from "react";
+import React, { use, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { getAnyProductById, getWishlist, toggleWishlist } from "@/lib/data";
+import { getAnyProductById, getWishlist, toggleWishlist, type AnyProduct } from "@/lib/data";
 import { useCart } from "@/app/context/CartContext";
 import { useRouter } from "next/navigation";
 
@@ -13,12 +13,16 @@ export default function ProductPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const product = getAnyProductById(id);
+  const [product, setProduct] = useState<AnyProduct | null>(null);
   const { addItem, totalItems } = useCart();
   const router = useRouter();
   const [liked, setLiked] = React.useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
+    getAnyProductById(id).then((p) => setProduct(p ?? null));
+  }, [id]);
+
+  useEffect(() => {
     setLiked(getWishlist().includes(id));
   }, [id]);
 
@@ -59,7 +63,6 @@ export default function ProductPage({
   const mediaImages = productImages;
   const mediaVideos = productVideos;
 
-  // We'll treat the carousel as: all images first, then videos.
   const slides: Array<{ type: "image"; src: string; alt: string } | { type: "video"; src: string }> = [
     ...mediaImages.map((src) => ({ type: "image" as const, src, alt: product.name })),
     ...mediaVideos.filter(Boolean).map((src) => ({ type: "video" as const, src })),
@@ -67,7 +70,7 @@ export default function ProductPage({
 
   const [activeIndex, setActiveIndex] = React.useState(0);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (slides.length <= 1) return;
     const t = window.setInterval(() => {
       setActiveIndex((i) => (i + 1) % slides.length);
@@ -79,9 +82,7 @@ export default function ProductPage({
 
   return (
     <div className="pdp-container">
-      {/* Sticky Top Bar */}
       <div className="pdp-topbar">
-
         <Link href="/" className="pdp-back-btn" aria-label="Go back">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M19 12H5" />
@@ -114,7 +115,6 @@ export default function ProductPage({
         </div>
       </div>
 
-      {/* Product Media */}
       <div className="pdp-image-section">
         <div className="pdp-image-wrapper">
           {activeSlide.type === "image" ? (
@@ -148,8 +148,6 @@ export default function ProductPage({
         )}
       </div>
 
-
-      {/* Product Content */}
       <div className="pdp-content">
         <div className="pdp-badges-row">
           <span className="pdp-badge-assured">
@@ -197,7 +195,6 @@ export default function ProductPage({
           </div>
         </div>
 
-        {/* Seller e-card */}
         <div className="pdp-seller-card">
           <div className="pdp-seller-top">
             <div className="pdp-seller-avatar" aria-hidden="true">
@@ -222,7 +219,6 @@ export default function ProductPage({
           <h3>Product Description</h3>
           <p>{product.description}</p>
         </div>
-
 
         <div className="pdp-highlights">
           <h3>Highlights</h3>
@@ -315,11 +311,9 @@ export default function ProductPage({
           </div>
         </div>
 
-        {/* Spacer for fixed bottom bar */}
         <div style={{ height: "90px" }} />
       </div>
 
-      {/* Fixed Bottom Action Bar */}
       <div className="pdp-bottom-bar">
         <button className="pdp-btn-add" onClick={handleAddToCart}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

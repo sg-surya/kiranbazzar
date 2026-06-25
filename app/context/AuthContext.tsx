@@ -1,7 +1,8 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { getAllUsers, seedAdmin, type StoredUser } from "@/lib/data";
+import { createClient } from "@/lib/supabase/client";
+import type { User } from "@supabase/supabase-js";
 
 type AuthState = {
   loggedIn: boolean;
@@ -12,8 +13,8 @@ type AuthState = {
 };
 
 type AuthContextType = AuthState & {
-  logout: () => void;
-  refresh: () => void;
+  logout: () => Promise<void>;
+  refresh: () => Promise<void>;
 };
 
 const defaultAuth: AuthState = {
@@ -26,40 +27,54 @@ const defaultAuth: AuthState = {
 
 const AuthContext = createContext<AuthContextType>({
   ...defaultAuth,
-  logout: () => {},
-  refresh: () => {},
+  logout: async () => {},
+  refresh: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [auth, setAuth] = useState<AuthState>(defaultAuth);
 
-  function refresh() {
-    if (typeof window === "undefined") return;
-    seedAdmin();
-    const sessionRaw = localStorage.getItem("kb_session");
-    if (sessionRaw) {
-      try {
-        const session = JSON.parse(sessionRaw);
-        if (session.loggedIn) {
-          let name: string | null = null;
-          let status: string | null = null;
-          const mobile = session.mobile || null;
-          const allUsers = getAllUsers();
-          const liveUser: StoredUser | undefined = allUsers.find((u) => u.mobileNumber === mobile);
-          if (liveUser) {
-            name = liveUser.name || liveUser.dukanName || null;
-            status = liveUser.status || "approved";
-          }
-          setAuth({ loggedIn: true, role: session.role || null, mobile, name, status });
-          return;
-        }
-      } catch {}
+  async function refresh() {
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        setAuth(defaultAuth);
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (profile) {
+        setAuth({
+          loggedIn: true,
+          role: profile.role || null,
+          mobile: profile.mobile_number || null,
+          name: profile.name || profile.dukan_name || null,
+          status: profile.status || "approved",
+        });
+      } else {
+        setAuth({
+          loggedIn: true,
+          role: user.user_metadata?.role || null,
+          mobile: user.user_metadata?.mobile_number || null,
+          name: user.user_metadata?.name || null,
+          status: "pending",
+        });
+      }
+    } catch {
+      setAuth(defaultAuth);
     }
-    setAuth(defaultAuth);
   }
 
-  function logout() {
-    localStorage.removeItem("kb_session");
+  async function logout() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
     setAuth(defaultAuth);
   }
 

@@ -15,14 +15,13 @@ import {
   saveAllCategories,
   getPlatformSettings,
   savePlatformSettings,
-  getStoreSettings,
-  saveStoreSettings,
   saveUser,
   type StoredUser,
   type Order,
   type OrderStatus,
   type Category,
   type PlatformSettings,
+  type AnyProduct,
 } from "@/lib/data";
 
 type OwnerTab = "overview" | "users" | "products" | "orders" | "categories" | "settings";
@@ -36,41 +35,39 @@ export default function OwnerPage() {
   const { loggedIn, role, name } = useAuth();
   const router = useRouter();
   const [tab, setTab] = useState<OwnerTab>("overview");
-  const [platSettingsLoaded, setPlatSettingsLoaded] = useState(false);
-  const [showAddUser, setShowAddUser] = useState(false);
-  const [newUser, setNewUser] = useState({ role: "seller" as "seller" | "dukandar", name: "", mobile: "", whatsapp: "", password: "", address: "", pincode: "", status: "approved" as "pending" | "approved" });
+  const [users, setUsers] = useState<StoredUser[]>([]);
+  const [allProducts, setAllProducts] = useState<AnyProduct[]>([]);
+  const [allOrders, setAllOrders] = useState<Order[]>([]);
+  const [cats, setCats] = useState<Category[]>([]);
   const [platForm, setPlatForm] = useState<PlatformSettings>({
     siteName: "Kirana Bazzar", deliveryFee: "0", contactPhone: "", contactEmail: "", aboutText: "",
   });
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [newUser, setNewUser] = useState({ role: "seller" as "seller" | "dukandar", name: "", mobile: "", whatsapp: "", password: "", address: "", pincode: "", status: "approved" as "pending" | "approved" });
+
+  async function loadData() {
+    setUsers(await getAllUsers());
+    setAllProducts(await getAllProducts());
+    setAllOrders(await getAllOrders());
+    setCats(await getAllCategories());
+    setPlatForm(await getPlatformSettings());
+  }
 
   useEffect(() => {
     if (!loggedIn) { router.replace("/login"); return; }
     if (role !== "owner") { router.replace("/"); return; }
+    loadData();
   }, [loggedIn, role, router]);
 
-  useEffect(() => {
-    if (!platSettingsLoaded) {
-      setPlatForm(getPlatformSettings());
-      setPlatSettingsLoaded(true);
-    }
-  }, [platSettingsLoaded]);
-
   if (!loggedIn || role !== "owner") return null;
-
-  const users = getAllUsers();
-  const allProducts = getAllProducts();
-  const allOrders = getAllOrders();
-  const cats = getAllCategories();
 
   const pendingUsers = users.filter((u) => u.role !== "owner" && u.status === "pending").length;
   const approvedSellers = users.filter((u) => u.role === "seller" && u.status === "approved").length;
   const totalRevenue = allOrders.filter((o) => o.status === "delivered").reduce((s, o) => s + o.total, 0);
 
-  // ── Handlers ──
-
-  function handleApprove(mobile: string) { updateUserStatus(mobile, "approved"); window.location.reload(); }
-  function handleReject(mobile: string) { updateUserStatus(mobile, "rejected"); window.location.reload(); }
-  function handleAddUser() {
+  async function handleApprove(mobile: string) { await updateUserStatus(mobile, "approved"); await loadData(); }
+  async function handleReject(mobile: string) { await updateUserStatus(mobile, "rejected"); await loadData(); }
+  async function handleAddUser() {
     const mob = newUser.mobile.replace(/\D/g, "");
     if (!newUser.name.trim() || mob.length !== 10 || !newUser.password.trim()) {
       alert("Name, valid 10-digit mobile, and password are required.");
@@ -92,39 +89,37 @@ export default function OwnerPage() {
       pincode: newUser.pincode || "000000",
       whatsappNumber: wa.length >= 10 ? wa : undefined,
     };
-    saveUser(profile);
+    await saveUser(profile);
     setShowAddUser(false);
     setNewUser({ role: "seller", name: "", mobile: "", whatsapp: "", password: "", address: "", pincode: "", status: "approved" });
-    window.location.reload();
+    await loadData();
   }
 
-  function handleDeleteUser(mobile: string) {
+  async function handleDeleteUser(mobile: string) {
     if (!confirm("Delete this user? This cannot be undone.")) return;
-    const updated = users.filter((u) => u.mobileNumber !== mobile);
-    localStorage.setItem("kb_users", JSON.stringify(updated));
-    window.location.reload();
+    const supabase = (await import("@/lib/supabase/client")).createClient();
+    await supabase.from("profiles").delete().eq("mobile_number", mobile);
+    await loadData();
   }
-  function handleOrderStatus(orderId: string, status: OrderStatus) { updateOrderStatus(orderId, status); window.location.reload(); }
-  function handleDeleteProduct(id: string) { if (!confirm("Delete this product?")) return; deleteSellerProduct(id); window.location.reload(); }
+  async function handleOrderStatus(orderId: string, status: OrderStatus) { await updateOrderStatus(orderId, status); await loadData(); }
+  async function handleDeleteProduct(id: string) { if (!confirm("Delete this product?")) return; await deleteSellerProduct(id); await loadData(); }
 
-  function handleAddCategory(name: string) {
+  async function handleAddCategory(name: string) {
     if (!name.trim() || cats.some((c) => c.name.toLowerCase() === name.trim().toLowerCase())) return;
-    saveAllCategories([...cats, { name: name.trim(), icon: "custom" }]);
-    window.location.reload();
+    await saveAllCategories([...cats, { name: name.trim(), icon: "custom" }]);
+    await loadData();
   }
-  function handleRemoveCategory(name: string) {
+  async function handleRemoveCategory(name: string) {
     if (!confirm(`Remove category "${name}"?`)) return;
-    saveAllCategories(cats.filter((c) => c.name !== name));
-    window.location.reload();
+    await saveAllCategories(cats.filter((c) => c.name !== name));
+    await loadData();
   }
 
-  function handleSettingsSave(e: React.FormEvent) {
+  async function handleSettingsSave(e: React.FormEvent) {
     e.preventDefault();
-    savePlatformSettings(platForm);
+    await savePlatformSettings(platForm);
     alert("Platform settings saved!");
   }
-
-  // ── Stats ──
 
   const stats = [
     { label: "Total Users", value: users.length, color: "#e0e7ff" },
@@ -147,7 +142,6 @@ export default function OwnerPage() {
   return (
     <div style={{ padding: 16 }}>
       <div style={{ maxWidth: 1000, margin: "0 auto" }}>
-        {/* ── Top Bar ── */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 8 }}>
           <div>
             <Link href="/" style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-muted)", textDecoration: "none" }}>&larr; Back to Store</Link>
@@ -156,7 +150,6 @@ export default function OwnerPage() {
           </div>
         </div>
 
-        {/* ── Tab Bar ── */}
         <div style={{ display: "flex", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
           {tabs.map((t) => (
             <button
@@ -174,7 +167,6 @@ export default function OwnerPage() {
           ))}
         </div>
 
-        {/* ════════════════ OVERVIEW ════════════════ */}
         {tab === "overview" && (
           <div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12, marginBottom: 20 }}>
@@ -215,7 +207,6 @@ export default function OwnerPage() {
           </div>
         )}
 
-        {/* ════════════════ USERS ════════════════ */}
         {tab === "users" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <div style={{ display: "flex", justifyContent: "flex-end" }}>
@@ -273,7 +264,6 @@ export default function OwnerPage() {
           </div>
         )}
 
-        {/* ════════════════ PRODUCTS ════════════════ */}
         {tab === "products" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {allProducts.length === 0 ? (
@@ -299,7 +289,6 @@ export default function OwnerPage() {
           </div>
         )}
 
-        {/* ════════════════ ORDERS ════════════════ */}
         {tab === "orders" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {allOrders.length === 0 ? (
@@ -343,7 +332,6 @@ export default function OwnerPage() {
           </div>
         )}
 
-        {/* ════════════════ CATEGORIES ════════════════ */}
         {tab === "categories" && (
           <div>
             <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
@@ -360,7 +348,6 @@ export default function OwnerPage() {
           </div>
         )}
 
-        {/* ════════════════ SETTINGS ════════════════ */}
         {tab === "settings" && (
           <div style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 12, padding: 20, maxWidth: 500 }}>
             <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 16 }}>Platform Settings</h3>
@@ -393,8 +380,6 @@ export default function OwnerPage() {
     </div>
   );
 }
-
-/* ── Add Category Input ───────────────────── */
 
 function AddCategoryInput({ onAdd }: { onAdd: (name: string) => void }) {
   const [val, setVal] = useState("");

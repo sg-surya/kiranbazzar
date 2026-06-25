@@ -82,8 +82,6 @@ export default function CheckoutPage() {
     if (!canPlace || items.length === 0) return;
     setPlacing(true);
 
-    await new Promise((r) => setTimeout(r, 700));
-
     const id = `KB-${Math.floor(100000 + Math.random() * 900000)}`;
 
     const order: Order = {
@@ -107,7 +105,7 @@ export default function CheckoutPage() {
       createdAt: new Date().toISOString(),
     };
 
-    saveOrder(order);
+    await saveOrder(order);
     setOrderId(id);
     clearCart();
   };
@@ -251,9 +249,7 @@ export default function CheckoutPage() {
         </div>
       </div>
 
-      {/* Spacer to avoid bottom CTA overlap if any */}
       <div style={{ height: 24 }} />
     </div>
   );
 }
-

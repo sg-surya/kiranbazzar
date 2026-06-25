@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
-import { saveUser } from "@/lib/data";
+import { createClient } from "@/lib/supabase/client";
+import { addProfileFromAuth } from "@/lib/data";
 
 type Role = "seller" | "dukandar";
 
@@ -30,9 +31,6 @@ type DukandarProfile = {
 
 type Profile = SellerProfile | DukandarProfile;
 
-const LS_PROFILE_KEY = "kb_profile";
-const LS_SESSION_KEY = "kb_session";
-
 function sanitizeDigits(s: string) {
   return (s || "").replace(/\D+/g, "");
 }
@@ -51,6 +49,7 @@ function getDummyOtp(phone: string) {
 }
 
 export default function SignUp() {
+  const supabase = createClient();
   const [role, setRole] = useState<Role>("seller");
   const [useOtp, setUseOtp] = useState<boolean>(true);
 
@@ -114,7 +113,7 @@ export default function SignUp() {
     return true;
   };
 
-  const createProfile = () => {
+  const createProfile = async () => {
     const pinErr = validate();
     if (pinErr) {
       setError(pinErr);
@@ -126,43 +125,48 @@ export default function SignUp() {
       if (!ok) return;
     }
 
-    let profile: Profile;
-    const wa = sanitizeDigits(whatsappNumber);
-    if (role === "seller") {
-      profile = {
-        role: "seller",
-        name: nameOrDukanName.trim(),
-        password: password.trim(),
-        address: address.trim(),
-        pincode: sanitizeDigits(pincode),
-        mobileNumber: sanitizeDigits(mobileNumber),
-        whatsappNumber: wa.length >= 10 ? wa : undefined,
-        status: "pending",
-      };
-    } else {
-      profile = {
-        role: "dukandar",
-        dukanName: nameOrDukanName.trim(),
-        password: password.trim(),
-        address: address.trim(),
-        pincode: sanitizeDigits(pincode),
-        mobileNumber: sanitizeDigits(mobileNumber),
-        whatsappNumber: wa.length >= 10 ? wa : undefined,
-        status: "pending",
-      };
+    setError(null);
+
+    const mob = sanitizeDigits(mobileNumber);
+    const email = `${mob}@kbuser.local`;
+
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password: password.trim(),
+      options: {
+        data: {
+          role,
+          name: nameOrDukanName.trim(),
+          mobile_number: mob,
+        },
+      },
+    });
+
+    if (signUpError) {
+      setError(signUpError.message);
+      return;
     }
 
-    saveUser(profile);
-    localStorage.setItem(LS_PROFILE_KEY, JSON.stringify(profile));
-    localStorage.setItem(
-      LS_SESSION_KEY,
-      JSON.stringify({ loggedIn: true, role: profile.role, mobile: profile.mobileNumber })
-    );
+    if (!data.user) {
+      setError("Signup failed. Please try again.");
+      return;
+    }
 
-    setError(null);
+    const wa = sanitizeDigits(whatsappNumber);
+    await addProfileFromAuth(data.user.id, {
+      role,
+      name: role === "seller" ? nameOrDukanName.trim() : undefined,
+      dukanName: role === "dukandar" ? nameOrDukanName.trim() : undefined,
+      mobileNumber: mob,
+      address: address.trim(),
+      pincode: sanitizeDigits(pincode),
+      whatsappNumber: wa.length >= 10 ? wa : undefined,
+      status: "pending",
+    });
+
     setSuccessMsg("Profile created successfully. Redirecting...");
     setTimeout(() => {
-      window.location.href = profile.role === "seller" ? "/dashboard" : "/";
+      window.location.href = role === "seller" ? "/dashboard" : "/";
     }, 1000);
   };
 
@@ -467,7 +471,6 @@ export default function SignUp() {
               >
                 {otpSent ? "OTP Sent" : "Send OTP"}
               </button>
-
               <button
                 type="button"
                 onClick={() => {

@@ -6,9 +6,6 @@ import React, { useState, useRef, useEffect } from "react";
 import { getAllProducts, getAllCategories, categories as staticCategories, getWishlist, toggleWishlist, type AnyProduct } from "@/lib/data";
 import { useCart } from "@/app/context/CartContext";
 import { useAuth } from "@/app/context/AuthContext";
-import { useRouter } from "next/navigation";
-
-/* ── SVG Category Icons ─────────────────────────────────── */
 
 function CategoryIcon({ type }: { type: string }) {
   const s = { width: 28, height: 28, viewBox: "0 0 24 24", fill: "none", stroke: "#22C55E", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
@@ -37,7 +34,6 @@ function CategoryIcon({ type }: { type: string }) {
 export default function Home() {
   const { totalItems } = useCart();
   const { loggedIn, role, name, status, logout } = useAuth();
-  const router = useRouter();
   const [allProducts, setAllProducts] = useState<AnyProduct[]>([]);
   const [catList, setCatList] = useState(staticCategories);
   const [wishlist, setWishlist] = useState<string[]>([]);
@@ -45,8 +41,8 @@ export default function Home() {
   const profileRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setAllProducts(getAllProducts());
-    setCatList(getAllCategories());
+    getAllProducts().then(setAllProducts);
+    getAllCategories().then(setCatList);
     setWishlist(getWishlist());
   }, []);
 
@@ -61,7 +57,6 @@ export default function Home() {
   return (
     <div className="container">
 
-      {/* ── 1. Header ──────────────────────────────────────── */}
       <header className="kb-header">
         <Link href="/" className="kb-logo">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -116,7 +111,6 @@ export default function Home() {
         </div>
       </header>
 
-      {/* ── 2. Hero Banner ─────────────────────────────────── */}
       <div className="hero-slider-wrapper">
         <div className="hero-banner">
           <h2>Lowest Prices<br />Best Quality Shopping</h2>
@@ -151,7 +145,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ── 3. Category Bar ────────────────────────────────── */}
       <div className="category-scroll">
         {catList.map((cat, i) => (
           <div key={i} className="cat-item">
@@ -163,7 +156,6 @@ export default function Home() {
         ))}
       </div>
 
-      {/* ── 4. Products Section Header ─────────────────────── */}
       <div className="product-section">
         <div className="section-header">
           <h3>Products For You</h3>

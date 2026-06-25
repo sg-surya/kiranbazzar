@@ -3,15 +3,18 @@
 import Link from "next/link";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { getAllUsers, seedAdmin } from "@/lib/data";
+import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/app/context/AuthContext";
 
 export default function Login() {
   const router = useRouter();
+  const supabase = createClient();
+  const { refresh } = useAuth();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  function handleLogin(e: React.FormEvent) {
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
@@ -20,52 +23,29 @@ export default function Login() {
       return;
     }
 
-    const identifierClean = identifier.trim().replace(/\D/g, "");
+    const email = identifier.trim().includes("@")
+      ? identifier.trim()
+      : `${identifier.trim().replace(/\D/g, "")}@kbuser.local`;
 
-    seedAdmin();
-    const users = getAllUsers();
-    let profile: any = null;
+    const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password: password.trim(),
+    });
 
-    if (users.length > 0) {
-      const matchedUser = users.find((u) => {
-        const uMobile = (u.mobileNumber || "").replace(/\D/g, "");
-        const uName = (u.name || u.dukanName || "").toLowerCase();
-        const matchMobile = identifierClean.length >= 10 && uMobile.includes(identifierClean.slice(-10));
-        const matchName = identifier.trim().toLowerCase() === uName;
-        return matchMobile || matchName;
-      });
-      if (matchedUser) profile = matchedUser;
-    }
-
-    // Fallback to kb_profile
-    if (!profile) {
-      const raw = localStorage.getItem("kb_profile");
-      if (raw) {
-        try { profile = JSON.parse(raw); } catch {}
-      }
-    }
-
-    if (!profile) {
-      setError("No account found. Please sign up first.");
+    if (signInError || !data.user) {
+      setError("Invalid credentials. Try again.");
       return;
     }
 
-    const mobile = profile.mobileNumber || "";
-    const name = profile.name || profile.dukanName || "";
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", data.user.id)
+      .maybeSingle();
 
-    if (profile.password !== password.trim()) {
-      setError("Incorrect password. Try again.");
-      return;
-    }
-
-    // Save to kb_profile so AuthContext picks it up
-    localStorage.setItem("kb_profile", JSON.stringify(profile));
-    localStorage.setItem(
-      "kb_session",
-      JSON.stringify({ loggedIn: true, role: profile.role, mobile: profile.mobileNumber })
-    );
-
-    const target = profile.role === "owner" ? "/owner" : profile.role === "seller" ? "/dashboard" : "/";
+    const role = profile?.role || data.user.user_metadata?.role || "dukandar";
+    const target = role === "owner" ? "/owner" : role === "seller" ? "/dashboard" : "/";
+    await refresh();
     router.replace(target);
   }
 
