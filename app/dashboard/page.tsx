@@ -57,7 +57,7 @@ export default function DashboardPage() {
           <p style={{ fontSize: 15, color: "var(--color-text-secondary)", fontWeight: 700, marginTop: 8, maxWidth: 400, lineHeight: 1.5 }}>
             {status === "rejected" ? "Your account has been rejected by the platform owner." : "Only sellers can access the dashboard."}
           </p>
-          <Link href="/" style={{ marginTop: 20, padding: "12px 28px", borderRadius: 8, background: "var(--color-primary)", color: "white", fontWeight: 800, fontSize: 15, textDecoration: "none" }}>Go to Home</Link>
+          <Link href="/" className="btn-premium btn-premium-primary" style={{ textDecoration: "none" }}>Go to Home</Link>
         </div>
       </div>
     );
@@ -276,11 +276,7 @@ export default function DashboardPage() {
     return (
       <button
         onClick={() => { if (id === "products") { resetProductForm(); setEditingId("__list__"); } setTab(id); }}
-        style={{
-          padding: "10px 18px", borderRadius: 8, border: "none", fontWeight: 800, fontSize: 13,
-          cursor: "pointer", background: tab === id ? "var(--color-primary)" : "#e5e7eb",
-          color: tab === id ? "white" : "#374151", whiteSpace: "nowrap",
-        }}
+        className={`btn-premium btn-premium-sm ${tab === id ? "btn-premium-primary" : "btn-premium-ghost"}`}
       >
         {label}
       </button>
@@ -288,18 +284,18 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="auth-layout" style={{ padding: 16 }}>
+    <div className="auth-layout page-slide-enter has-bottom-nav" style={{ padding: 16 }}>
       <div style={{ maxWidth: 960, margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 8 }}>
           <div>
-            <Link href="/" style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-muted)", textDecoration: "none" }}>&larr; Back to Store</Link>
+            <Link href="/" className="btn-premium btn-premium-ghost btn-premium-sm" style={{ textDecoration: "none" }}>&larr; Back to Store</Link>
             <h1 style={{ fontSize: 24, fontWeight: 900, color: "var(--color-text)", marginTop: 4 }}>Seller Dashboard</h1>
             <p style={{ fontSize: 13, color: "var(--color-text-secondary)", fontWeight: 700 }}>Welcome, {name || "Seller"}</p>
           </div>
         </div>
 
         {status === "pending" && (
-          <div style={{ background: "#fef3c7", borderRadius: 12, padding: 16, marginBottom: 20, display: "flex", alignItems: "center", gap: 12 }}>
+          <div className="glass-card" style={{ background: "#fef3c7", padding: 16, marginBottom: 20, display: "flex", alignItems: "center", gap: 12 }}>
             <span style={{ fontSize: 24 }}>⏳</span>
             <div>
               <div style={{ fontWeight: 900, fontSize: 15, color: "#92400e" }}>Account Pending Approval</div>
@@ -309,7 +305,7 @@ export default function DashboardPage() {
         )}
 
         {status === "rejected" && (
-          <div style={{ background: "#fef2f2", borderRadius: 12, padding: 16, marginBottom: 20, display: "flex", alignItems: "center", gap: 12 }}>
+          <div className="glass-card" style={{ background: "#fef2f2", padding: 16, marginBottom: 20, display: "flex", alignItems: "center", gap: 12 }}>
             <span style={{ fontSize: 24 }}>🚫</span>
             <div>
               <div style={{ fontWeight: 900, fontSize: 15, color: "#991b1b" }}>Account Rejected</div>
@@ -340,15 +336,9 @@ export default function DashboardPage() {
                   const ok = await toggleSellerOnlineStatus(mobile, next);
                   if (ok) setSettings({ ...settings, isOnline: next });
                 }}
-                style={{
-                  display: "flex", alignItems: "center", gap: 8,
-                  padding: "8px 18px", borderRadius: 20, border: "none",
-                  background: settings.isOnline ? "#d1fae5" : "#fef2f2",
-                  color: settings.isOnline ? "#065f46" : "#991b1b",
-                  fontWeight: 800, fontSize: 13, cursor: "pointer",
-                }}
+                className={`btn-premium btn-premium-sm ${settings.isOnline ? "btn-premium-secondary" : "btn-premium-danger"}`}
               >
-                <span style={{ width: 10, height: 10, borderRadius: "50%", background: settings.isOnline ? "#22C55E" : "#ef4444", display: "inline-block" }} />
+                <span style={{ width: 10, height: 10, borderRadius: "50%", background: settings.isOnline ? "var(--color-primary)" : "#ef4444", display: "inline-block", marginRight: 6 }} />
                 {settings.isOnline ? "Online — Accepting Orders" : "Offline"}
               </button>
             </div>
@@ -364,7 +354,7 @@ export default function DashboardPage() {
                 { label: "Completed Orders", value: orders.filter((o) => o.status === "delivered").length, color: "#dbeafe" },
                 { label: "Total Earnings", value: `₹${totalEarnings}`, color: "#f3e8ff" },
               ].map((s) => (
-                <div key={s.label} style={{ background: s.color, borderRadius: 12, padding: 16, textAlign: "center" }}>
+                <div key={s.label} className="glass-card" style={{ background: s.color, padding: 16, textAlign: "center" }}>
                   <div style={{ fontSize: 26, fontWeight: 900, color: "#1f2937" }}>{s.value}</div>
                   <div style={{ fontSize: 11, fontWeight: 700, color: "#4b5563", marginTop: 4 }}>{s.label}</div>
                 </div>
@@ -372,7 +362,7 @@ export default function DashboardPage() {
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
-              <div style={{ background: "var(--color-surface)", borderRadius: 12, border: "1px solid var(--color-border)", padding: 16 }}>
+              <div className="glass-card" style={{ padding: 16 }}>
                 <h3 style={{ fontSize: 14, fontWeight: 800, marginBottom: 8 }}>📍 Delivery Info</h3>
                 <div style={{ fontSize: 13, color: "var(--color-text-secondary)", fontWeight: 700, display: "flex", flexDirection: "column", gap: 4 }}>
                   <span>Radius: <strong style={{ color: "#1f2937" }}>{settings.deliveryRadius} km</strong></span>
@@ -380,22 +370,22 @@ export default function DashboardPage() {
                   <span>UPI: <strong style={{ color: "#1f2937" }}>{settings.upiId || "Not set"}</strong></span>
                 </div>
               </div>
-              <div style={{ background: "var(--color-surface)", borderRadius: 12, border: "1px solid var(--color-border)", padding: 16 }}>
+              <div className="glass-card" style={{ padding: 16 }}>
                 <h3 style={{ fontSize: 14, fontWeight: 800, marginBottom: 8 }}>📊 Quick Actions</h3>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <button onClick={() => { resetProductForm(); setTab("products"); }} style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: "#e0e7ff", fontWeight: 800, fontSize: 12, cursor: "pointer", textAlign: "left" }}>+ Add Product</button>
-                  <button onClick={() => setTab("orders")} style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: "#fef3c7", fontWeight: 800, fontSize: 12, cursor: "pointer", textAlign: "left" }}>📦 View Orders ({pendingOrders})</button>
-                  <button onClick={() => setTab("settings")} style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: "#f3e8ff", fontWeight: 800, fontSize: 12, cursor: "pointer", textAlign: "left" }}>⚙️ Store Settings</button>
+                  <button onClick={() => { resetProductForm(); setTab("products"); }} className="btn-premium btn-premium-sm btn-premium-secondary" style={{ textAlign: "left" }}>+ Add Product</button>
+                  <button onClick={() => setTab("orders")} className="btn-premium btn-premium-sm btn-premium-secondary" style={{ textAlign: "left" }}>📦 View Orders ({pendingOrders})</button>
+                  <button onClick={() => setTab("settings")} className="btn-premium btn-premium-sm btn-premium-secondary" style={{ textAlign: "left" }}>⚙️ Store Settings</button>
                 </div>
               </div>
             </div>
 
             {orders.length === 0 ? (
-              <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-muted)", fontWeight: 700, background: "var(--color-surface)", borderRadius: 12, border: "1px solid var(--color-border)" }}>
+              <div className="glass-card" style={{ textAlign: "center", padding: 40, color: "var(--color-text-muted)", fontWeight: 700 }}>
                 No orders yet. Orders will appear here when buyers purchase your products.
               </div>
             ) : (
-              <div style={{ background: "var(--color-surface)", borderRadius: 12, border: "1px solid var(--color-border)", padding: 16 }}>
+              <div className="glass-card" style={{ padding: 16 }}>
                 <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 12 }}>Recent Orders</h3>
                 {orders.slice(0, 5).map((o) => (
                   <div key={o.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid var(--color-border)" }}>
@@ -414,18 +404,18 @@ export default function DashboardPage() {
         {tab === "products" && (
           <div>
             <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-              <button onClick={resetProductForm} style={{ padding: "8px 16px", borderRadius: 8, border: "none", fontWeight: 800, fontSize: 13, cursor: "pointer", background: !editingId ? "var(--color-primary)" : "#e5e7eb", color: !editingId ? "white" : "#374151" }}>Add New</button>
-              <button onClick={() => { resetProductForm(); setEditingId("__list__"); }} style={{ padding: "8px 16px", borderRadius: 8, border: "none", fontWeight: 800, fontSize: 13, cursor: "pointer", background: editingId === "__list__" ? "var(--color-primary)" : "#e5e7eb", color: editingId === "__list__" ? "white" : "#374151" }}>All Products</button>
+              <button onClick={resetProductForm} className={`btn-premium btn-premium-sm ${!editingId ? "btn-premium-primary" : "btn-premium-ghost"}`}>Add New</button>
+              <button onClick={() => { resetProductForm(); setEditingId("__list__"); }} className={`btn-premium btn-premium-sm ${editingId === "__list__" ? "btn-premium-primary" : "btn-premium-ghost"}`}>All Products</button>
             </div>
 
             {successMsg && (
-              <div style={{ background: "#d1fae5", color: "#065f46", borderRadius: 12, padding: 14, marginBottom: 16, fontWeight: 800, fontSize: 14, textAlign: "center", animation: "successPop 0.4s ease" }}>
+              <div className="glass-card" style={{ background: "#d1fae5", color: "#065f46", padding: 14, marginBottom: 16, fontWeight: 800, fontSize: 14, textAlign: "center", animation: "successPop 0.4s ease" }}>
                 ✅ {successMsg}
               </div>
             )}
 
             {!editingId && (
-              <form onSubmit={handleProductSubmit} style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 12, padding: 24 }}>
+              <form onSubmit={handleProductSubmit} className="glass-card" style={{ padding: 24 }}>
                 <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 16 }}>Add New Product</h2>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                   <div>
@@ -468,7 +458,7 @@ export default function DashboardPage() {
                     {imgPreview && (
                       <div style={{ marginTop: 6, position: "relative", display: "inline-block" }}>
                         <img src={imgPreview} alt="Preview" style={{ width: 80, height: 80, borderRadius: 8, objectFit: "cover", border: "1px solid var(--color-border)" }} />
-                        <button type="button" onClick={handleRemoveImage} style={{ position: "absolute", top: -6, right: -6, width: 20, height: 20, borderRadius: "50%", border: "none", background: "#ef4444", color: "white", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
+                        <button type="button" onClick={handleRemoveImage} className="btn-premium btn-premium-sm" style={{ position: "absolute", top: -6, right: -6, width: 20, height: 20, borderRadius: "50%", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
                       </div>
                     )}
                   </div>
@@ -496,31 +486,31 @@ export default function DashboardPage() {
                       {videoFiles.map((v, i) => (
                         <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700, color: "var(--color-text-secondary)" }}>
                           <span>🎬 {v.name}</span>
-                          <button type="button" onClick={() => handleRemoveVideo(i)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 14, fontWeight: 800 }}>Remove</button>
+                          <button type="button" onClick={() => handleRemoveVideo(i)} className="btn-premium btn-premium-sm btn-premium-ghost" style={{ color: "#ef4444" }}>Remove</button>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
 
-                <button type="submit" disabled={submitting} style={{ marginTop: 16, padding: "12px 28px", borderRadius: 8, border: "none", background: submitting ? "#9ca3af" : "var(--color-primary)", color: "white", fontWeight: 800, fontSize: 15, cursor: submitting ? "not-allowed" : "pointer" }}>{submitting ? "Saving..." : "Add Product"}</button>
+                <button type="submit" disabled={submitting} className={`btn-premium btn-premium-primary ${submitting ? "opacity-50" : ""}`} style={{ cursor: submitting ? "not-allowed" : "pointer", marginTop: 16 }}>{submitting ? "Saving..." : "Add Product"}</button>
               </form>
             )}
 
             {editingId === "__list__" && (
               <div>
                 {products.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: 60, color: "var(--color-text-muted)", fontWeight: 700 }}>
+                  <div className="glass-card" style={{ textAlign: "center", padding: 60, color: "var(--color-text-muted)", fontWeight: 700 }}>
                     <div style={{ fontSize: 48, marginBottom: 12 }}>📦</div>
                     <div style={{ fontSize: 16, marginBottom: 16 }}>No products yet. Start adding your products!</div>
-                    <button onClick={resetProductForm} style={{ padding: "12px 28px", borderRadius: 8, border: "none", background: "var(--color-primary)", color: "white", fontWeight: 800, fontSize: 15, cursor: "pointer" }}>+ Add Product</button>
+                    <button onClick={resetProductForm} className="btn-premium btn-premium-primary">+ Add Product</button>
                   </div>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                     {products.map((p) => {
                       const discount = p.mrp > p.price ? Math.round(((p.mrp - p.price) / p.mrp) * 100) : 0;
                       return (
-                        <div key={p.id} style={{ display: "flex", gap: 16, alignItems: "center", background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 12, padding: 16 }}>
+                        <div key={p.id} className="glass-card" style={{ display: "flex", gap: 16, alignItems: "center", padding: 16 }}>
                           <img src={p.img} alt={p.name} style={{ width: 64, height: 64, borderRadius: 8, objectFit: "cover", background: "#f3f4f6" }} />
                           <div style={{ flex: 1 }}>
                             <div style={{ fontWeight: 800, fontSize: 15 }}>{p.name}</div>
@@ -528,9 +518,9 @@ export default function DashboardPage() {
                             <div style={{ fontSize: 12, color: "var(--color-text-muted)", fontWeight: 700 }}>{p.brand ? `${p.brand} · ` : ""}{p.category} · {p.unit} · Stock: {p.stock} · {p.available ? "Available" : "Hidden"}</div>
                           </div>
                           <div style={{ display: "flex", gap: 6 }}>
-                            <button onClick={() => toggleAvailability(p.id)} style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid var(--color-border)", background: p.available ? "#fef3c7" : "#d1fae5", fontWeight: 800, fontSize: 12, cursor: "pointer" }}>{p.available ? "Hide" : "Show"}</button>
-                            <button onClick={() => handleEditProduct(p)} style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid var(--color-border)", background: "#e0e7ff", fontWeight: 800, fontSize: 12, cursor: "pointer" }}>Edit</button>
-                            <button onClick={() => handleDeleteProduct(p.id)} style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #fecaca", background: "#fef2f2", color: "#991b1b", fontWeight: 800, fontSize: 12, cursor: "pointer" }}>Delete</button>
+                            <button onClick={() => toggleAvailability(p.id)} className={`btn-premium btn-premium-sm ${p.available ? "btn-premium-ghost" : "btn-premium-secondary"}`}>{p.available ? "Hide" : "Show"}</button>
+                            <button onClick={() => handleEditProduct(p)} className="btn-premium btn-premium-sm btn-premium-secondary">Edit</button>
+                            <button onClick={() => handleDeleteProduct(p.id)} className="btn-premium btn-premium-sm btn-premium-danger">Delete</button>
                           </div>
                         </div>
                       );
@@ -541,7 +531,7 @@ export default function DashboardPage() {
             )}
 
             {editingId && editingId !== "__list__" && (
-              <form onSubmit={handleProductSubmit} style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 12, padding: 24 }}>
+              <form onSubmit={handleProductSubmit} className="glass-card" style={{ padding: 24 }}>
                 <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 16 }}>Edit Product</h2>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                   <div>
@@ -584,7 +574,7 @@ export default function DashboardPage() {
                     {imgPreview && (
                       <div style={{ marginTop: 6, position: "relative", display: "inline-block" }}>
                         <img src={imgPreview} alt="Preview" style={{ width: 80, height: 80, borderRadius: 8, objectFit: "cover", border: "1px solid var(--color-border)" }} />
-                        <button type="button" onClick={handleRemoveImage} style={{ position: "absolute", top: -6, right: -6, width: 20, height: 20, borderRadius: "50%", border: "none", background: "#ef4444", color: "white", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
+                        <button type="button" onClick={handleRemoveImage} className="btn-premium btn-premium-sm" style={{ position: "absolute", top: -6, right: -6, width: 20, height: 20, borderRadius: "50%", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
                       </div>
                     )}
                   </div>
@@ -612,7 +602,7 @@ export default function DashboardPage() {
                       {videoFiles.map((v, i) => (
                         <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700, color: "var(--color-text-secondary)" }}>
                           <span>🎬 {v.name}</span>
-                          <button type="button" onClick={() => handleRemoveVideo(i)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 14, fontWeight: 800 }}>Remove</button>
+                          <button type="button" onClick={() => handleRemoveVideo(i)} className="btn-premium btn-premium-sm btn-premium-ghost" style={{ color: "#ef4444" }}>Remove</button>
                         </div>
                       ))}
                     </div>
@@ -620,8 +610,8 @@ export default function DashboardPage() {
                 </div>
 
                 <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-                  <button type="submit" disabled={submitting} style={{ padding: "12px 28px", borderRadius: 8, border: "none", background: submitting ? "#9ca3af" : "var(--color-primary)", color: "white", fontWeight: 800, fontSize: 15, cursor: submitting ? "not-allowed" : "pointer" }}>{submitting ? "Saving..." : "Update Product"}</button>
-                  <button type="button" onClick={resetProductForm} style={{ padding: "12px 28px", borderRadius: 8, border: "1px solid var(--color-border)", background: "white", fontWeight: 800, fontSize: 15, cursor: "pointer" }}>Cancel</button>
+                  <button type="submit" disabled={submitting} className={`btn-premium btn-premium-primary ${submitting ? "opacity-50" : ""}`} style={{ cursor: submitting ? "not-allowed" : "pointer" }}>{submitting ? "Saving..." : "Update Product"}</button>
+                  <button type="button" onClick={resetProductForm} className="btn-premium btn-premium-secondary">Cancel</button>
                 </div>
               </form>
             )}
@@ -631,13 +621,13 @@ export default function DashboardPage() {
         {tab === "orders" && (
           <div>
             {orders.length === 0 ? (
-              <div style={{ textAlign: "center", padding: 60, color: "var(--color-text-muted)", fontWeight: 700, background: "var(--color-surface)", borderRadius: 12, border: "1px solid var(--color-border)" }}>
+              <div className="glass-card" style={{ textAlign: "center", padding: 60, color: "var(--color-text-muted)", fontWeight: 700 }}>
                 No orders received yet. Orders will appear here when buyers purchase your products.
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {orders.map((o) => (
-                  <div key={o.id} style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 12, padding: 16 }}>
+                  <div key={o.id} className="glass-card" style={{ padding: 16 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
                       <div>
                         <div style={{ fontWeight: 800, fontSize: 15 }}>{o.id}</div>
@@ -681,8 +671,8 @@ export default function DashboardPage() {
                         <button
                           key={s}
                           onClick={() => { playClickSound(); handleOrderStatusChange(o.id, s); }}
+                          className="btn-premium btn-premium-sm"
                           style={{
-                            padding: "6px 14px", borderRadius: 6,
                             border: o.status === s ? "2px solid #1f2937" : "1px solid var(--color-border)",
                             background: statusColors[s], fontWeight: 800, fontSize: 12,
                             cursor: "pointer", color: "#374151", opacity: o.status === s ? 1 : 0.7,
@@ -710,18 +700,14 @@ export default function DashboardPage() {
                           />
                           <button
                             onClick={() => { playClickSound(); handleOTPDelivery(o.id); }}
-                            style={{
-                              padding: "6px 14px", borderRadius: 6, border: "none",
-                              background: "#d1fae5", color: "#065f46", fontWeight: 800, fontSize: 12,
-                              cursor: "pointer",
-                            }}
+                            className="btn-premium btn-premium-sm btn-premium-secondary"
                           >
                             Verify & Deliver
                           </button>
                         </div>
                       )}
                       {o.status === "delivered" && (
-                        <span style={{ padding: "6px 14px", borderRadius: 6, background: "#d1fae5", color: "#065f46", fontWeight: 800, fontSize: 12 }}>✅ Delivered</span>
+                        <span className="btn-premium btn-premium-sm btn-premium-secondary" style={{ cursor: "default" }}>✅ Delivered</span>
                       )}
                       {otpErrors[o.id] && (
                         <div style={{ width: "100%", fontSize: 12, color: "#ef4444", fontWeight: 700, marginTop: 4 }}>{otpErrors[o.id]}</div>
@@ -735,7 +721,7 @@ export default function DashboardPage() {
         )}
 
         {tab === "settings" && (
-          <form onSubmit={handleSettingsSave} style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 12, padding: 24 }}>
+          <form onSubmit={handleSettingsSave} className="glass-card" style={{ padding: 24 }}>
             <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 16 }}>Store Settings</h2>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               <div>
@@ -767,7 +753,7 @@ export default function DashboardPage() {
                 {settings.upiQr && (
                   <div style={{ marginTop: 6, position: "relative", display: "inline-block" }}>
                     <img src={settings.upiQr} alt="UPI QR" style={{ width: 100, height: 100, borderRadius: 8, objectFit: "contain", border: "1px solid var(--color-border)" }} />
-                    <button type="button" onClick={() => setSettings({ ...settings, upiQr: "" })} style={{ position: "absolute", top: -6, right: -6, width: 20, height: 20, borderRadius: "50%", border: "none", background: "#ef4444", color: "white", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
+                    <button type="button" onClick={() => setSettings({ ...settings, upiQr: "" })} className="btn-premium btn-premium-sm" style={{ position: "absolute", top: -6, right: -6, width: 20, height: 20, borderRadius: "50%", padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
                   </div>
                 )}
               </div>
@@ -784,7 +770,7 @@ export default function DashboardPage() {
                 <input value={settings.returnPolicy} onChange={(e) => setSettings({ ...settings, returnPolicy: e.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid var(--color-border)", fontSize: 14 }} />
               </div>
             </div>
-            <button type="submit" style={{ marginTop: 16, padding: "12px 28px", borderRadius: 8, border: "none", background: "var(--color-primary)", color: "white", fontWeight: 800, fontSize: 15, cursor: "pointer" }}>Save Settings</button>
+            <button type="submit" className="btn-premium btn-premium-primary" style={{ marginTop: 16 }}>Save Settings</button>
           </form>
         )}
       </div>

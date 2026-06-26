@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { getAllProducts, getAllCategories, categories as staticCategories, getWishlist, toggleWishlist, type AnyProduct } from "@/lib/data";
 import { useCart } from "@/app/context/CartContext";
 import { useAuth } from "@/app/context/AuthContext";
@@ -33,15 +33,14 @@ function CategoryIcon({ type }: { type: string }) {
 
 export default function Home() {
   const { totalItems } = useCart();
-  const { loggedIn, role, name, status, logout } = useAuth();
+  const { loggedIn, status, logout } = useAuth();
   const [allProducts, setAllProducts] = useState<AnyProduct[]>([]);
   const [catList, setCatList] = useState(staticCategories);
   const [wishlist, setWishlist] = useState<string[]>([]);
-  const [profileOpen, setProfileOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
   const [activeCat, setActiveCat] = useState("");
   const [loading, setLoading] = useState(true);
-  const profileRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     getAllProducts().then(setAllProducts).finally(() => setLoading(false));
@@ -56,17 +55,9 @@ export default function Home() {
     return matchSearch && matchCat;
   });
 
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (profileRef.current && !profileRef.current.contains(e.target as Node)) setProfileOpen(false);
-    }
-    if (profileOpen) document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [profileOpen]);
-
   if (loggedIn && status === "rejected") {
     return (
-      <div className="container">
+    <div className="container has-bottom-nav page-slide-enter">
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "80vh", textAlign: "center", padding: 24 }}>
           <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10" />
@@ -88,21 +79,25 @@ export default function Home() {
   return (
     <div className="container">
 
-      <header className="kb-header">
+      <header className="kb-header glass-strong">
         <Link href="/" className="kb-logo">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
             <line x1="3" y1="6" x2="21" y2="6" />
             <path d="M16 10a4 4 0 0 1-8 0" />
           </svg>
           KiranaBazzar
         </Link>
-        <div className="kb-search">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          <input type="text" placeholder="Search products, brands and more" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <div className="kb-search" style={searchOpen ? {} : { width: 40, padding: 8, border: "none", background: "transparent", cursor: "pointer", maxWidth: 40, flex: "0 0 auto" }}>
+          <button onClick={() => setSearchOpen(true)} style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer", display: "flex" }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={searchOpen ? "var(--color-text-muted)" : "var(--color-text-secondary)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </button>
+          {searchOpen && (
+            <input type="text" placeholder="Search products, brands and more" value={search} onChange={(e) => setSearch(e.target.value)} autoFocus onBlur={() => { if (!search) setSearchOpen(false); }} style={{ marginLeft: 8 }} />
+          )}
         </div>
         <div className="kb-actions">
           <Link href="/cart" className="kb-cart-btn" aria-label="Cart">
@@ -113,43 +108,16 @@ export default function Home() {
             </svg>
             {totalItems > 0 && <span className="kb-cart-badge">{totalItems}</span>}
           </Link>
-          <div ref={profileRef} style={{ position: "relative" }}>
-            {loggedIn ? (
-              <>
-                <button onClick={() => setProfileOpen((p) => !p)} className="kb-avatar" title={name || "Account"}>
-                  {name ? name.slice(0, 1).toUpperCase() : "?"}
-                </button>
-                {profileOpen && (
-                  <div className="kb-dropdown">
-                    <div className="kb-dropdown-header">{name}<span style={{ fontSize: 11, color: "var(--color-text-muted)", fontWeight: 700 }}>{role === "seller" ? " (Seller)" : role === "owner" ? " (Owner)" : role === "dukandar" ? (status === "approved" ? " (Dukandar)" : " (Dukandar · Pending)") : ""}</span></div>
-                    <div className="kb-dropdown-divider" />
-                    <Link href="/profile" className="kb-dropdown-item" onClick={() => setProfileOpen(false)}>👤 My Profile</Link>
-                    {role === "seller" && <Link href="/dashboard" className="kb-dropdown-item" onClick={() => setProfileOpen(false)}>📊 Dashboard</Link>}
-                    {role === "owner" && <Link href="/owner" className="kb-dropdown-item" onClick={() => setProfileOpen(false)}>⚙️ Owner Panel</Link>}
-                    <Link href="/my-orders" className="kb-dropdown-item" onClick={() => setProfileOpen(false)}>📦 My Orders</Link>
-                    <Link href="/cart" className="kb-dropdown-item" onClick={() => setProfileOpen(false)}>🛒 My Cart</Link>
-                    <button className="kb-dropdown-item kb-dropdown-logout" onClick={() => { setProfileOpen(false); logout(); }}>🚪 Logout</button>
-                  </div>
-                )}
-              </>
-            ) : (
-              <Link href="/login" className="kb-avatar">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                  <circle cx="12" cy="7" r="4" />
-                </svg>
-              </Link>
-            )}
-          </div>
         </div>
       </header>
 
       <div className="hero-slider-wrapper">
-        <div className="hero-banner">
+        <div className="hero-banner hero-banner-premium">
+          <div className="hero-bg-glow" />
           <h2>Lowest Prices<br />Best Quality Shopping</h2>
           <div className="hero-cards">
-            <div className="hero-card">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <div className="hero-card glass">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="1" y="3" width="15" height="13" />
                 <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
                 <circle cx="5.5" cy="18.5" r="2.5" />
@@ -157,23 +125,20 @@ export default function Home() {
               </svg>
               Free Delivery
             </div>
-            <div className="hero-card">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <div className="hero-card glass">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
                 <line x1="1" y1="10" x2="23" y2="10" />
               </svg>
               Cash on Delivery
             </div>
-            <div className="hero-card">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <div className="hero-card glass">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="23 4 23 10 17 10" />
                 <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
               </svg>
               Easy Returns
             </div>
-          </div>
-          <div className="hero-bg-img">
-            <Image src="/mango_banner.png" alt="Fresh produce" width={200} height={200} style={{ mixBlendMode: "multiply" }} />
           </div>
         </div>
       </div>

@@ -19,7 +19,7 @@ function RejectedScreen() {
         <p style={{ fontSize: 15, color: "var(--color-text-secondary)", fontWeight: 700, marginTop: 8, maxWidth: 400, lineHeight: 1.5 }}>
           Your account has been rejected by the platform owner.
         </p>
-        <Link href="/" style={{ marginTop: 20, padding: "12px 28px", borderRadius: 8, background: "var(--color-primary)", color: "white", fontWeight: 800, fontSize: 15, textDecoration: "none" }}>
+        <Link href="/" className="btn-premium btn-premium-primary" style={{ marginTop: 20 }}>
           Go to Home
         </Link>
       </div>
@@ -50,7 +50,7 @@ export default function CartPage() {
   if (items.length === 0) {
     return (
       <div className="cart-container">
-        <div className="cart-topbar">
+        <div className="cart-topbar glass-strong">
           <Link href="/" className="pdp-back-btn" aria-label="Go back">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M19 12H5" />
@@ -61,11 +61,13 @@ export default function CartPage() {
           <div style={{ width: 22 }} />
         </div>
         <div className="cart-empty">
-          <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="9" cy="21" r="1" />
-            <circle cx="20" cy="21" r="1" />
-            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-          </svg>
+          <div style={{ width: 100, height: 100, borderRadius: "50%", background: "var(--color-primary-light)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 8 }}>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="9" cy="21" r="1" />
+              <circle cx="20" cy="21" r="1" />
+              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+            </svg>
+          </div>
           <h3>Your cart is empty</h3>
           <p>Looks like you haven&apos;t added anything to your cart yet.</p>
           <Link href="/" className="cart-shop-btn">
@@ -82,9 +84,9 @@ export default function CartPage() {
   }
 
   return (
-    <div className="cart-container">
+    <div className="cart-container page-slide-enter">
       {/* Top Bar */}
-      <div className="cart-topbar">
+      <div className="cart-topbar glass-strong">
         <Link href="/" className="pdp-back-btn" aria-label="Go back">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M19 12H5" />
@@ -102,8 +104,8 @@ export default function CartPage() {
 
       {/* Savings Banner */}
       {totalSavings > 0 && (
-        <div className="cart-savings-banner">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <div className="cart-savings-banner" style={{ background: "linear-gradient(135deg, var(--color-primary-light), #bbf7d0)" }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
             <line x1="7" y1="7" x2="7.01" y2="7" />
           </svg>
@@ -113,13 +115,13 @@ export default function CartPage() {
 
       {/* Cart Items */}
       <div className="cart-items">
-        {items.map((item) => {
+        {items.map((item, idx) => {
           const discount = Math.round(
             ((item.product.mrp - item.product.price) / item.product.mrp) * 100
           );
           return (
-            <div key={item.product.id} className="cart-item">
-              <Link href={`/product/${item.product.id}`} className="cart-item-img">
+            <div key={item.product.id} className="cart-item glass-card" style={{ animationDelay: `${idx * 0.05}s` }}>
+              <Link href={`/product/${item.product.id}`} className="cart-item-img" style={{ borderRadius: 12 }}>
                 <Image
                   src={item.product.img}
                   alt={item.product.name}
@@ -129,7 +131,7 @@ export default function CartPage() {
                 />
               </Link>
               <div className="cart-item-details">
-                <Link href={`/product/${item.product.id}`} className="cart-item-name">
+                <Link href={`/product/${item.product.id}`} className="cart-item-name" style={{ fontWeight: 700 }}>
                   {item.product.name}
                 </Link>
                 <div className="cart-item-price-row">
@@ -140,7 +142,7 @@ export default function CartPage() {
                   )}
                 </div>
                 <div className="cart-item-delivery">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <rect x="1" y="3" width="15" height="13" />
                     <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
                     <circle cx="5.5" cy="18.5" r="2.5" />
@@ -196,7 +198,7 @@ export default function CartPage() {
       </div>
 
       {/* Order Summary */}
-      <div className="cart-summary">
+      <div className="cart-summary glass-card">
         <h3>Order Summary</h3>
         <div className="cart-summary-row">
           <span>Subtotal ({totalItems} items)</span>
@@ -218,10 +220,10 @@ export default function CartPage() {
       </div>
 
       {/* Spacer for bottom bar */}
-      <div style={{ height: "80px" }} />
+      <div style={{ height: 80 }} />
 
       {/* Fixed Bottom */}
-      <div className="cart-bottom-bar">
+      <div className="cart-bottom-bar glass-strong">
         <div className="cart-bottom-price">
           <span className="cart-bottom-total">₹{totalPrice}</span>
           <span className="cart-bottom-items">{totalItems} item{totalItems > 1 ? "s" : ""}</span>

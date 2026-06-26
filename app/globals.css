@@ -1,38 +1,47 @@
 /* ═══════════════════════════════════════════════════════════
-   KIRANA BAZZAR — Design System & Global Styles
-   Premium Meesho-inspired mobile-first e-commerce
+   KIRANA BAZZAR v2 — Premium Design System
+   Mobile-first · Glass · Micro-interactions
    ═══════════════════════════════════════════════════════════ */
 
 :root {
-  /* Brand Colors */
-  --color-primary: #22C55E;
-  --color-primary-dark: #16a34a;
-  --color-primary-light: #dcfce7;
-  --color-bg: #f4f4f5;
+  --color-primary: #059669;
+  --color-primary-dark: #047857;
+  --color-primary-light: #d1fae5;
+  --color-primary-lighter: #ecfdf5;
+  --color-accent: #f59e0b;
+  --color-accent-light: #fef3c7;
+  --color-purple: #8b5cf6;
+  --color-purple-light: #ede9fe;
+  --color-bg: #f0fdf4;
   --color-surface: #ffffff;
-  --color-text: #1a1a1a;
-  --color-text-secondary: #555555;
-  --color-text-muted: #999999;
-  --color-border: #e8e8e8;
+  --color-text: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #94a3b8;
+  --color-border: #e2e8f0;
+  --color-border-light: #f1f5f9;
   --color-danger: #ef4444;
+  --color-danger-light: #fef2f2;
   --color-discount: #e11d48;
+  --color-warning: #f59e0b;
+  --color-success: #059669;
+  --color-success-light: #d1fae5;
 
-  /* Radii */
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 20px;
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
   --radius-full: 50%;
 
-  /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.1);
-  --shadow-xl: 0 8px 32px rgba(0, 0, 0, 0.12);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 12px 40px rgba(0, 0, 0, 0.12);
+  --shadow-glow: 0 4px 20px rgba(5, 150, 105, 0.3);
+  --shadow-glow-lg: 0 8px 32px rgba(5, 150, 105, 0.35);
 
-  /* Transitions */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* ── Reset ───────────────────────────────────────────────── */
@@ -55,22 +64,171 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
+a { text-decoration: none; color: inherit; }
+img { max-width: 100%; display: block; }
+ul { list-style: none; }
+button { cursor: pointer; border: none; background: none; font-family: inherit; }
+
+/* ── Premium Utilities ────────────────────────────── */
+.glass {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+.glass-strong {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+.glass-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.5);
+  box-shadow: var(--shadow-md);
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+
+.page-slide-enter { animation: slideInRight 0.3s var(--ease-out); }
+.page-slide-exit { animation: slideOutLeft 0.2s var(--ease-out); }
+.fade-in { animation: fadeIn 0.3s var(--ease-out); }
+.scale-in { animation: scaleIn 0.2s var(--ease-out); }
+.bounce-in { animation: bounceIn 0.4s var(--ease-out); }
+
+/* ── Bottom Navigation ────────────────────────────── */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 1200px;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 6px 0 env(safe-area-inset-bottom, 6px);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--color-border);
+  z-index: 300;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.06);
+}
+.bottom-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 16px;
+  border-radius: var(--radius-md);
+  transition: color 0.2s;
+  color: var(--color-text-muted);
   text-decoration: none;
-  color: inherit;
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
 }
-img {
-  max-width: 100%;
-  display: block;
+.bottom-nav-item.active {
+  color: var(--color-primary);
 }
-ul {
-  list-style: none;
+.bottom-nav-item.active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 3px;
+  background: var(--color-primary);
+  border-radius: 0 0 3px 3px;
 }
-button {
-  cursor: pointer;
+.bottom-nav-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+/* ── Page padding for bottom nav ──────────────────── */
+.has-bottom-nav {
+  padding-bottom: 64px;
+}
+
+/* ── Premium Button Base ──────────────────────────── */
+.btn-premium {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 24px;
+  border-radius: var(--radius-md);
+  font-weight: 800;
+  font-size: 15px;
+  transition: transform 0.15s var(--ease-out), box-shadow 0.15s, background 0.15s;
   border: none;
-  background: none;
-  font-family: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-premium:active { transform: scale(0.97); }
+.btn-premium-primary {
+  background: var(--color-primary);
+  color: white;
+  box-shadow: var(--shadow-glow);
+}
+.btn-premium-primary:hover { background: var(--color-primary-dark); box-shadow: var(--shadow-glow-lg); }
+.btn-premium-secondary {
+  background: var(--color-surface);
+  color: var(--color-primary);
+  border: 2px solid var(--color-primary);
+}
+.btn-premium-secondary:hover { background: var(--color-primary-lighter); }
+.btn-premium-danger {
+  background: var(--color-danger);
+  color: white;
+  box-shadow: 0 4px 20px rgba(239, 68, 68, 0.3);
+}
+.btn-premium-ghost {
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+.btn-premium-ghost:hover { background: var(--color-border-light); }
+.btn-premium-sm { padding: 10px 16px; font-size: 13px; }
+
+/* ── Skeleton shimmer ─────────────────────────────── */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes slideInRight {
+  from { transform: translateX(30px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes slideOutLeft {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(-30px); opacity: 0; }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes scaleIn {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+@keyframes bounceIn {
+  0% { transform: scale(0.8); opacity: 0; }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
 }
 
 /* ── Layout ──────────────────────────────────────────────── */
@@ -101,12 +259,12 @@ button {
 }
 
 .kb-logo {
-  font-size: 18px;
-  font-weight: 800;
+  font-size: 20px;
+  font-weight: 900;
   color: var(--color-primary);
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   letter-spacing: -0.5px;
   white-space: nowrap;
   text-decoration: none;
@@ -261,19 +419,37 @@ button {
    2. HERO BANNER
    ══════════════════════════════════════════════════════════ */
 .hero-slider-wrapper {
-  padding: 16px;
+  padding: 12px 16px;
 }
 
 .hero-banner {
   background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 50%, #6ee7b7 100%);
   border-radius: var(--radius-lg);
-  padding: 28px 20px;
+  padding: 32px 24px;
   position: relative;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-lg);
+}
+.hero-banner-premium {
+  background: linear-gradient(135deg, #059669 0%, #10b981 40%, #34d399 100%);
+}
+.hero-banner-premium h2 {
+  color: white;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  font-size: 24px;
+}
+.hero-bg-glow {
+  position: absolute;
+  top: -50%;
+  right: -30%;
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
 }
 
 .hero-banner h2 {
@@ -283,14 +459,6 @@ button {
   z-index: 2;
   line-height: 1.2;
   letter-spacing: -0.3px;
-}
-
-.hero-bg-img {
-  position: absolute;
-  right: -20px;
-  bottom: -20px;
-  opacity: 0.4;
-  z-index: 1;
 }
 
 .hero-cards {
@@ -320,6 +488,17 @@ button {
   align-items: center;
   gap: 8px;
   border: 1px solid rgba(255, 255, 255, 0.6);
+}
+.hero-banner-premium .hero-card {
+  background: rgba(255,255,255,0.2);
+  border-color: rgba(255,255,255,0.3);
+  color: white;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  font-weight: 700;
+}
+.hero-banner-premium .hero-card svg {
+  stroke: white !important;
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -442,18 +621,20 @@ button {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  transition: box-shadow 0.25s var(--ease-out), transform 0.25s var(--ease-out);
+  transition: box-shadow 0.3s var(--ease-out), transform 0.3s var(--ease-out);
   box-shadow: var(--shadow-sm);
+  border: 1px solid var(--color-border-light);
 }
 .product-card:hover {
   box-shadow: var(--shadow-lg);
-  transform: translateY(-2px);
+  transform: translateY(-3px);
+  border-color: var(--color-primary-light);
 }
 
 .product-img {
   width: 100%;
   aspect-ratio: 1;
-  background: #fafafa;
+  background: linear-gradient(135deg, #fafafa 0%, #f0fdf4 100%);
   padding: 16px;
   position: relative;
   display: flex;
@@ -472,6 +653,7 @@ button {
   padding: 3px 8px 3px 6px;
   border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
   letter-spacing: 0.3px;
+  box-shadow: 0 2px 8px rgba(225, 29, 72, 0.3);
 }
 
 .product-info {
@@ -1573,11 +1755,6 @@ button {
   to { transform: scale(4); opacity: 0; }
 }
 
-@keyframes pulse {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 0.8; }
-}
-
 /* ── Order Progress Stepper ──────────────────────────── */
 .order-progress {
   display: flex;
@@ -1608,14 +1785,14 @@ button {
   z-index: 1;
 }
 .order-progress-circle.completed {
-  background: #22C55E;
-  border-color: #22C55E;
+  background: var(--color-primary);
+  border-color: var(--color-primary);
   color: white;
 }
 .order-progress-circle.active {
-  border-color: #22C55E;
-  color: #22C55E;
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.2);
 }
 .order-progress-circle.cancelled {
   background: #ef4444;
@@ -1632,18 +1809,18 @@ button {
   z-index: 0;
 }
 .order-progress-line.completed {
-  background: #22C55E;
+  background: var(--color-primary);
 }
 .order-progress-label {
   font-size: 9px;
   font-weight: 700;
-  color: #9ca3af;
+  color: var(--color-text-muted);
   margin-top: 4px;
   text-align: center;
   white-space: nowrap;
 }
 .order-progress-label.completed {
-  color: #22C55E;
+  color: var(--color-primary);
 }
 .order-progress-label.active {
   color: #1f2937;
@@ -1676,7 +1853,7 @@ button {
 }
 .spinner-dark {
   border-color: rgba(0,0,0,0.1);
-  border-top-color: #22C55E;
+  border-top-color: var(--color-primary);
 }
 
 @media (min-width: 1024px) {
@@ -1691,11 +1868,14 @@ button {
 /* ── Mobile Responsive Enhancements ─────────────────── */
 @media (max-width: 480px) {
   .kb-header { padding: 8px 10px; gap: 8px; }
-  .kb-logo { font-size: 15px; }
+  .kb-logo { font-size: 15px; gap: 6px; }
+  .kb-logo svg { width: 22px; height: 22px; }
   .kb-search { max-width: none; padding: 6px 10px; }
   .kb-search input { font-size: 12px; }
-  .hero-banner { padding: 20px 16px; }
-  .hero-banner h2 { font-size: 18px; }
+  .hero-banner { padding: 24px 18px; border-radius: var(--radius-md); }
+  .hero-banner h2 { font-size: 20px; }
+  .hero-banner-premium h2 { font-size: 20px; }
+  .hero-bg-glow { width: 200px; height: 200px; top: -40%; right: -40%; }
   .hero-card { font-size: 11px; padding: 8px 12px; }
   .category-scroll { gap: 14px; padding: 12px 10px; }
   .cat-circle { width: 48px; height: 48px; }
