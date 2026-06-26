@@ -16,6 +16,7 @@ import {
   getPlatformSettings,
   savePlatformSettings,
   saveUser,
+  deleteUser,
   type StoredUser,
   type Order,
   type OrderStatus,
@@ -97,8 +98,7 @@ export default function OwnerPage() {
 
   async function handleDeleteUser(mobile: string) {
     if (!confirm("Delete this user? This cannot be undone.")) return;
-    const supabase = (await import("@/lib/supabase/client")).createClient();
-    await supabase.from("profiles").delete().eq("mobile_number", mobile);
+    await deleteUser(mobile);
     await loadData();
   }
   async function handleOrderStatus(orderId: string, status: OrderStatus) { await updateOrderStatus(orderId, status); await loadData(); }

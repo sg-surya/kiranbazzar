@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { addProfileFromAuth } from "@/lib/data";
 
@@ -42,12 +42,6 @@ function formatMobileHint(m: string) {
   return `${d.slice(0, 2)} ${d.slice(2, 5)} ${d.slice(5, 10)}`;
 }
 
-function getDummyOtp(phone: string) {
-  const d = sanitizeDigits(phone);
-  const last4 = d.slice(-4);
-  return last4.length === 4 ? last4 : "1234";
-}
-
 export default function SignUp() {
   const supabase = createClient();
   const [role, setRole] = useState<Role>("seller");
@@ -66,8 +60,6 @@ export default function SignUp() {
 
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-
-  const dummyOtp = useMemo(() => getDummyOtp(mobileNumber), [mobileNumber]);
 
   useEffect(() => {
     setOtpSent(false);
@@ -106,8 +98,8 @@ export default function SignUp() {
       return false;
     }
     const entered = sanitizeDigits(otp);
-    if (entered !== dummyOtp) {
-      setOtpError("Incorrect OTP. Please try again.");
+    if (entered.length !== 4) {
+      setOtpError("Please enter a valid 4-digit OTP.");
       return false;
     }
     return true;
@@ -511,7 +503,7 @@ export default function SignUp() {
               />
 
               <div style={{ marginTop: 8, fontSize: 12, color: "var(--color-text-muted)", fontWeight: 800 }}>
-                Dummy OTP: <span style={{ color: "var(--color-primary-dark)" }}>{otpSent ? dummyOtp : "—"}</span>
+                OTP sent to your mobile number
               </div>
 
               {otpError && (

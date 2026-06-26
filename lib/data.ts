@@ -149,37 +149,25 @@ export async function getSellerProducts(): Promise<SellerProduct[]> {
 }
 
 export async function saveSellerProduct(product: SellerProduct): Promise<void> {
-  const supabase = createClient();
-  const row = {
-    name: product.name,
-    description: product.description,
-    price: product.price,
-    mrp: product.mrp,
-    img: product.img,
-    videos: product.videos || [],
-    category: product.category,
-    unit: product.unit,
-    brand: product.brand,
-    stock: product.stock,
-    sku: product.sku,
-    tags: product.tags || [],
-    highlights: product.highlights || [],
-    seller_mobile: product.sellerMobile,
-    seller_name: product.sellerName,
-    available: product.available,
-  };
-
-  const existing = await supabase.from("seller_products").select("id").eq("id", product.id).maybeSingle();
-  if (existing.data) {
-    await supabase.from("seller_products").update(row).eq("id", product.id);
-  } else {
-    await supabase.from("seller_products").insert({ id: product.id, ...row });
+  const res = await fetch("/api/seller-products", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(product),
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || "Failed to save product");
   }
 }
 
 export async function deleteSellerProduct(id: string): Promise<void> {
-  const supabase = createClient();
-  await supabase.from("seller_products").delete().eq("id", id);
+  const res = await fetch(`/api/seller-products?id=${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || "Failed to delete product");
+  }
 }
 
 export async function getAllProducts(): Promise<(Product | SellerProduct)[]> {
@@ -337,11 +325,9 @@ export type StoredUser = {
 
 export async function getAllUsers(): Promise<StoredUser[]> {
   try {
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .order("created_at", { ascending: false });
+    const res = await fetch("/api/profiles");
+    if (!res.ok) return [];
+    const data = await res.json();
     return (data || []).map(mapProfileToUser);
   } catch {
     return [];
@@ -349,13 +335,6 @@ export async function getAllUsers(): Promise<StoredUser[]> {
 }
 
 export async function saveUser(user: StoredUser): Promise<void> {
-  const supabase = createClient();
-  const existing = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("mobile_number", user.mobileNumber)
-    .maybeSingle();
-
   const row = {
     role: user.role,
     name: user.role === "seller" ? user.name || null : null,
@@ -365,33 +344,25 @@ export async function saveUser(user: StoredUser): Promise<void> {
     mobile_number: user.mobileNumber,
     whatsapp_number: user.whatsappNumber || null,
     status: user.status,
+    password: user.password,
   };
-
-  if (existing.data) {
-    await supabase.from("profiles").update(row).eq("id", existing.data.id);
-  } else {
-    await supabase.from("profiles").insert(row);
-  }
+  await fetch("/api/profiles", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(row),
+  });
 }
 
 export async function updateUserStatus(mobile: string, status: UserStatus): Promise<void> {
-  const supabase = createClient();
-  await supabase.from("profiles").update({ status }).eq("mobile_number", mobile);
+  await fetch("/api/profiles", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mobile_number: mobile, updates: { status } }),
+  });
 }
 
-export async function seedAdmin(): Promise<void> {
-  const supabase = createClient();
-  const { data } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("mobile_number", "9999999999")
-    .eq("role", "owner")
-    .maybeSingle();
-  if (data) return;
-
-  try {
-    await fetch("/api/seed-admin", { method: "POST" });
-  } catch {}
+export async function deleteUser(mobile: string): Promise<void> {
+  await fetch(`/api/profiles?mobile=${encodeURIComponent(mobile)}`, { method: "DELETE" });
 }
 
 export async function getUsersByRole(role: string): Promise<StoredUser[]> {

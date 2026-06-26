@@ -182,16 +182,20 @@ ALTER TABLE store_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE wishlists ENABLE ROW LEVEL SECURITY;
 ALTER TABLE platform_settings ENABLE ROW LEVEL SECURITY;
 
--- Profiles: users can read/update their own
+-- Profiles: users can read/update/insert their own
 CREATE POLICY "profiles_select_own" ON profiles FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "profiles_update_own" ON profiles FOR UPDATE USING (auth.uid() = id);
--- Owners can see all (for admin panel) — handled via service_role in API routes
+CREATE POLICY "profiles_insert_own" ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
+-- Admin operations go through /api/profiles (service_role bypasses RLS)
 
 -- Products: public read
 CREATE POLICY "products_select_all" ON products FOR SELECT USING (true);
 
--- Seller products: public read
+-- Seller products: public read, authenticated insert/update/delete
 CREATE POLICY "seller_products_select_all" ON seller_products FOR SELECT USING (true);
+CREATE POLICY "seller_products_insert_all" ON seller_products FOR INSERT WITH CHECK (true);
+CREATE POLICY "seller_products_update_all" ON seller_products FOR UPDATE USING (true);
+CREATE POLICY "seller_products_delete_all" ON seller_products FOR DELETE USING (true);
 
 -- Orders: users can see their own / owners can see all
 CREATE POLICY "orders_select_own" ON orders FOR SELECT USING (true); -- simplified: app-level filtering

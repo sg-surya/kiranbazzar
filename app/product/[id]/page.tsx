@@ -26,6 +26,40 @@ export default function ProductPage({
     setLiked(getWishlist().includes(id));
   }, [id]);
 
+  const discount = product ? Math.round(((product.mrp - product.price) / product.mrp) * 100) : 0;
+
+  const productImages = product && "images" in product && product.images && product.images.length > 0 ? product.images : (product ? [product.img] : []);
+  const productVideos = product && "videos" in product ? product.videos || [] : [];
+  const productRating = product && "rating" in product ? product.rating : "5.0";
+  const productEcard = product && "ecard" in product ? product.ecard : undefined;
+  const productHighlights = product && "highlights" in product ? product.highlights : ["Fresh & quality product"];
+
+  const slides: Array<{ type: "image"; src: string; alt: string } | { type: "video"; src: string }> = product
+    ? [
+        ...productImages.map((src) => ({ type: "image" as const, src, alt: product.name })),
+        ...productVideos.filter(Boolean).map((src) => ({ type: "video" as const, src })),
+      ]
+    : [];
+
+  const [activeIndex, setActiveIndex] = React.useState(0);
+
+  useEffect(() => {
+    if (slides.length <= 1) return;
+    const t = window.setInterval(() => {
+      setActiveIndex((i) => (i + 1) % slides.length);
+    }, 3500);
+    return () => window.clearInterval(t);
+  }, [slides.length]);
+
+  const handleAddToCart = () => {
+    if (product) addItem(product);
+  };
+
+  const handleBuyNow = () => {
+    if (product) addItem(product);
+    router.push("/checkout");
+  };
+
   if (!product) {
     return (
       <div className="pdp-not-found">
@@ -42,41 +76,6 @@ export default function ProductPage({
       </div>
     );
   }
-
-  const discount = Math.round(((product.mrp - product.price) / product.mrp) * 100);
-
-  const productImages = "images" in product && product.images && product.images.length > 0 ? product.images : [product.img];
-  const productVideos = "videos" in product ? product.videos || [] : [];
-  const productRating = "rating" in product ? product.rating : "5.0";
-  const productEcard = "ecard" in product ? product.ecard : undefined;
-  const productHighlights = "highlights" in product ? product.highlights : ["Fresh & quality product"];
-
-  const handleAddToCart = () => {
-    addItem(product);
-  };
-
-  const handleBuyNow = () => {
-    addItem(product);
-    router.push("/checkout");
-  };
-
-  const mediaImages = productImages;
-  const mediaVideos = productVideos;
-
-  const slides: Array<{ type: "image"; src: string; alt: string } | { type: "video"; src: string }> = [
-    ...mediaImages.map((src) => ({ type: "image" as const, src, alt: product.name })),
-    ...mediaVideos.filter(Boolean).map((src) => ({ type: "video" as const, src })),
-  ];
-
-  const [activeIndex, setActiveIndex] = React.useState(0);
-
-  useEffect(() => {
-    if (slides.length <= 1) return;
-    const t = window.setInterval(() => {
-      setActiveIndex((i) => (i + 1) % slides.length);
-    }, 3500);
-    return () => window.clearInterval(t);
-  }, [slides.length]);
 
   const activeSlide = slides[activeIndex] ?? slides[0];
 

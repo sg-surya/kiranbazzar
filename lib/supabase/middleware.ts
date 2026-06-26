@@ -8,6 +8,7 @@ export const createClient = (request: NextRequest) => {
   let supabaseResponse = NextResponse.next({ request: { headers: request.headers } });
 
   const supabase = createServerClient(supabaseUrl, supabaseKey, {
+    cookieOptions: { maxAge: 90 * 24 * 60 * 60 },
     cookies: {
       getAll() {
         return request.cookies.getAll();

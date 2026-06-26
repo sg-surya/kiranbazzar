@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useAuth } from "@/app/context/AuthContext";
 import { useRouter } from "next/navigation";
 import {
@@ -59,6 +59,8 @@ export default function DashboardPage() {
   });
   const [imgPreview, setImgPreview] = useState<string | null>(null);
   const [videoFiles, setVideoFiles] = useState<{ name: string; data: string }[]>([]);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
   const [settings, setSettings] = useState<StoreSettings>({
     storeName: "My Store",
@@ -98,14 +100,17 @@ export default function DashboardPage() {
     setImgPreview(null);
     setVideoFiles([]);
     setEditingId(null);
+    setSuccessMsg(null);
   }
 
   async function handleProductSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!productForm.name.trim() || !productForm.price || !productForm.mrp) return;
+    if (submitting) return;
+    setSubmitting(true);
 
     const product: SellerProduct = {
-      id: editingId || `seller_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      id: editingId || crypto.randomUUID(),
       name: productForm.name.trim(),
       description: productForm.description.trim(),
       price: Number(productForm.price),
@@ -125,16 +130,19 @@ export default function DashboardPage() {
       createdAt: editingId ? (products.find((p) => p.id === editingId)?.createdAt || new Date().toISOString()) : new Date().toISOString(),
     };
 
-    await saveSellerProduct(product);
-
-    const existingCats = await getAllCategories();
-    if (!existingCats.some((c) => c.name === product.category)) {
-      await saveAllCategories([...existingCats, { name: product.category, icon: "custom" }]);
+    try {
+      await saveSellerProduct(product);
+    } catch (e) {
+      alert("Failed to save product: " + (e instanceof Error ? e.message : "Unknown error"));
+      setSubmitting(false);
+      return;
     }
 
     await loadData();
     resetProductForm();
-    setTab("products");
+    setSubmitting(false);
+    setSuccessMsg(editingId ? "Product updated!" : "Product added!");
+    setTimeout(() => setSuccessMsg(null), 2500);
   }
 
   function handleEditProduct(p: SellerProduct) {
@@ -205,21 +213,6 @@ export default function DashboardPage() {
     await loadData();
   }
 
-  async function seedDemoData() {
-    if (!mobile) return;
-    const demoProducts: SellerProduct[] = [
-      { id: `demo_${Date.now()}_1`, name: "Fresh Apples", description: "Crisp and juicy red apples directly from Himachal orchards.", price: 99, mrp: 140, img: "/product_atta.png", videos: [], category: "Grocery", unit: "1 kg", brand: "HimFresh", stock: 50, sku: "FRU-APP-001", tags: ["organic", "fresh", "apple"], highlights: ["Farm fresh", "Juicy & crispy", "Himachal apples"], sellerMobile: mobile, sellerName: name || "Demo Seller", available: true, createdAt: new Date().toISOString() },
-      { id: `demo_${Date.now()}_2`, name: "Amul Gold Milk 1L", description: "Full-cream milk rich in taste and nutrition.", price: 68, mrp: 76, img: "/category_dairy.png", videos: [], category: "Grocery", unit: "1 L", brand: "Amul", stock: 100, sku: "MLK-AMUL-001", tags: ["milk", "dairy", "full-cream"], highlights: ["Full-cream", "Rich in calcium", "Pure & fresh"], sellerMobile: mobile, sellerName: name || "Demo Seller", available: true, createdAt: new Date().toISOString() },
-      { id: `demo_${Date.now()}_3`, name: "Organic Turmeric Powder", description: "Pure organic turmeric powder from certified farms.", price: 45, mrp: 60, img: "/category_dairy.png", videos: [], category: "Spices", unit: "200 g", brand: "Organic Valley", stock: 30, sku: "SPC-TUR-001", tags: ["organic", "turmeric", "spice"], highlights: ["Certified organic", "Rich curcumin", "No additives"], sellerMobile: mobile, sellerName: name || "Demo Seller", available: true, createdAt: new Date().toISOString() },
-      { id: `demo_${Date.now()}_4`, name: "Multigrain Atta 5kg", description: "Healthy multigrain flour mix of 5 grains.", price: 299, mrp: 375, img: "/product_atta.png", videos: [], category: "Atta & Dal", unit: "5 kg", brand: "HealthyGrains", stock: 25, sku: "ATTA-MG-001", tags: ["multigrain", "healthy", "whole-wheat"], highlights: ["5 grain mix", "High fiber", "No maida"], sellerMobile: mobile, sellerName: name || "Demo Seller", available: true, createdAt: new Date().toISOString() },
-      { id: `demo_${Date.now()}_5`, name: "Herbal Shampoo 200ml", description: "Natural herbal shampoo with aloe vera and neem.", price: 129, mrp: 175, img: "/category_dairy.png", videos: [], category: "Personal Care", unit: "200 ml", brand: "Herbals", stock: 40, sku: "HBC-SHM-001", tags: ["herbal", "shampoo", "natural"], highlights: ["Aloe vera & neem", "Chemical-free", "All hair types"], sellerMobile: mobile, sellerName: name || "Demo Seller", available: true, createdAt: new Date().toISOString() },
-      { id: `demo_${Date.now()}_6`, name: "Cold Pressed Coconut Oil 500ml", description: "Pure cold-pressed virgin coconut oil for cooking and skin.", price: 199, mrp: 250, img: "/category_dairy.png", videos: [], category: "Oil & Ghee", unit: "500 ml", brand: "CocoPure", stock: 20, sku: "OIL-CCN-001", tags: ["cold-pressed", "coconut", "virgin"], highlights: ["Cold-pressed", "Virgin quality", "Multi-purpose"], sellerMobile: mobile, sellerName: name || "Demo Seller", available: true, createdAt: new Date().toISOString() },
-    ];
-    for (const p of demoProducts) await saveSellerProduct(p);
-    await saveStoreSettings(mobile, { storeName: `${name || "Demo"}'s Kirana Store`, storeDescription: "Welcome to our store! We offer fresh groceries, spices, and daily essentials at the best prices.", storeLogo: "/product_atta.png", deliveryRadius: "15", returnPolicy: "7-day easy returns", upiId: "demo@sbi", storeAddress: "123, Main Road, New Delhi" });
-    await loadData();
-  }
-
   const statusColors: Record<OrderStatus, string> = {
     pending: "#fef3c7", confirmed: "#e0e7ff", shipped: "#dbeafe", delivered: "#d1fae5", cancelled: "#fef2f2",
   };
@@ -234,7 +227,7 @@ export default function DashboardPage() {
   function TabBtn({ id, label }: { id: Tab; label: string }) {
     return (
       <button
-        onClick={() => { if (id === "products") resetProductForm(); setTab(id); }}
+        onClick={() => { if (id === "products") { resetProductForm(); setEditingId("__list__"); } setTab(id); }}
         style={{
           padding: "10px 18px", borderRadius: 8, border: "none", fontWeight: 800, fontSize: 13,
           cursor: "pointer", background: tab === id ? "var(--color-primary)" : "#e5e7eb",
@@ -305,15 +298,6 @@ export default function DashboardPage() {
               ))}
             </div>
 
-            {products.length === 0 && (
-              <div style={{ textAlign: "center", marginBottom: 16 }}>
-                <button onClick={seedDemoData} style={{ padding: "12px 24px", borderRadius: 8, border: "none", background: "#22C55E", color: "white", fontWeight: 800, fontSize: 14, cursor: "pointer" }}>
-                  🌱 Seed Demo Data (products + settings)
-                </button>
-                <div style={{ fontSize: 12, color: "var(--color-text-muted)", fontWeight: 700, marginTop: 6 }}>One-click to add sample products and store settings for testing</div>
-              </div>
-            )}
-
             {orders.length === 0 ? (
               <div style={{ textAlign: "center", padding: 40, color: "var(--color-text-muted)", fontWeight: 700, background: "var(--color-surface)", borderRadius: 12, border: "1px solid var(--color-border)" }}>
                 No orders yet. Orders will appear here when buyers purchase your products.
@@ -342,6 +326,12 @@ export default function DashboardPage() {
               <button onClick={() => { resetProductForm(); setEditingId("__list__"); }} style={{ padding: "8px 16px", borderRadius: 8, border: "none", fontWeight: 800, fontSize: 13, cursor: "pointer", background: editingId === "__list__" ? "var(--color-primary)" : "#e5e7eb", color: editingId === "__list__" ? "white" : "#374151" }}>All Products</button>
             </div>
 
+            {successMsg && (
+              <div style={{ background: "#d1fae5", color: "#065f46", borderRadius: 12, padding: 14, marginBottom: 16, fontWeight: 800, fontSize: 14, textAlign: "center", animation: "successPop 0.4s ease" }}>
+                ✅ {successMsg}
+              </div>
+            )}
+
             {!editingId && (
               <form onSubmit={handleProductSubmit} style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 12, padding: 24 }}>
                 <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 16 }}>Add New Product</h2>
@@ -363,10 +353,6 @@ export default function DashboardPage() {
                   <div>
                     <label style={{ display: "block", fontSize: 12, fontWeight: 800, color: "var(--color-text-secondary)", marginBottom: 4 }}>Brand</label>
                     <input value={productForm.brand} onChange={(e) => setProductForm({ ...productForm, brand: e.target.value })} placeholder="e.g. Tata, Amul" style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid var(--color-border)", fontSize: 14 }} />
-                  </div>
-                  <div>
-                    <label style={{ display: "block", fontSize: 12, fontWeight: 800, color: "var(--color-text-secondary)", marginBottom: 4 }}>SKU / Item Code</label>
-                    <input value={productForm.sku} onChange={(e) => setProductForm({ ...productForm, sku: e.target.value })} placeholder="e.g. FRU-APP-001" style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid var(--color-border)", fontSize: 14 }} />
                   </div>
                   <div>
                     <label style={{ display: "block", fontSize: 12, fontWeight: 800, color: "var(--color-text-secondary)", marginBottom: 4 }}>Selling Price (₹) *</label>
@@ -425,14 +411,18 @@ export default function DashboardPage() {
                   )}
                 </div>
 
-                <button type="submit" style={{ marginTop: 16, padding: "12px 28px", borderRadius: 8, border: "none", background: "var(--color-primary)", color: "white", fontWeight: 800, fontSize: 15, cursor: "pointer" }}>Add Product</button>
+                <button type="submit" disabled={submitting} style={{ marginTop: 16, padding: "12px 28px", borderRadius: 8, border: "none", background: submitting ? "#9ca3af" : "var(--color-primary)", color: "white", fontWeight: 800, fontSize: 15, cursor: submitting ? "not-allowed" : "pointer" }}>{submitting ? "Saving..." : "Add Product"}</button>
               </form>
             )}
 
             {editingId === "__list__" && (
               <div>
                 {products.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: 60, color: "var(--color-text-muted)", fontWeight: 700 }}>No products yet. Add your first product!</div>
+                  <div style={{ textAlign: "center", padding: 60, color: "var(--color-text-muted)", fontWeight: 700 }}>
+                    <div style={{ fontSize: 48, marginBottom: 12 }}>📦</div>
+                    <div style={{ fontSize: 16, marginBottom: 16 }}>No products yet. Start adding your products!</div>
+                    <button onClick={resetProductForm} style={{ padding: "12px 28px", borderRadius: 8, border: "none", background: "var(--color-primary)", color: "white", fontWeight: 800, fontSize: 15, cursor: "pointer" }}>+ Add Product</button>
+                  </div>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                     {products.map((p) => {
@@ -479,10 +469,6 @@ export default function DashboardPage() {
                   <div>
                     <label style={{ display: "block", fontSize: 12, fontWeight: 800, color: "var(--color-text-secondary)", marginBottom: 4 }}>Brand</label>
                     <input value={productForm.brand} onChange={(e) => setProductForm({ ...productForm, brand: e.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid var(--color-border)", fontSize: 14 }} />
-                  </div>
-                  <div>
-                    <label style={{ display: "block", fontSize: 12, fontWeight: 800, color: "var(--color-text-secondary)", marginBottom: 4 }}>SKU / Item Code</label>
-                    <input value={productForm.sku} onChange={(e) => setProductForm({ ...productForm, sku: e.target.value })} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid var(--color-border)", fontSize: 14 }} />
                   </div>
                   <div>
                     <label style={{ display: "block", fontSize: 12, fontWeight: 800, color: "var(--color-text-secondary)", marginBottom: 4 }}>Selling Price (₹) *</label>
@@ -542,7 +528,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-                  <button type="submit" style={{ padding: "12px 28px", borderRadius: 8, border: "none", background: "var(--color-primary)", color: "white", fontWeight: 800, fontSize: 15, cursor: "pointer" }}>Update Product</button>
+                  <button type="submit" disabled={submitting} style={{ padding: "12px 28px", borderRadius: 8, border: "none", background: submitting ? "#9ca3af" : "var(--color-primary)", color: "white", fontWeight: 800, fontSize: 15, cursor: submitting ? "not-allowed" : "pointer" }}>{submitting ? "Saving..." : "Update Product"}</button>
                   <button type="button" onClick={resetProductForm} style={{ padding: "12px 28px", borderRadius: 8, border: "1px solid var(--color-border)", background: "white", fontWeight: 800, fontSize: 15, cursor: "pointer" }}>Cancel</button>
                 </div>
               </form>

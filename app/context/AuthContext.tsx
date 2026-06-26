@@ -37,7 +37,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function refresh() {
     try {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+
+      let user;
+      try {
+        const res = await supabase.auth.getUser();
+        user = res.data?.user;
+      } catch {
+        user = null;
+      }
+
+      if (!user) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        user = sessionData?.session?.user ?? null;
+      }
 
       if (!user) {
         setAuth(defaultAuth);
