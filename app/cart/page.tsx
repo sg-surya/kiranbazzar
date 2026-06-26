@@ -8,10 +8,28 @@ import { useAuth } from "@/app/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { playClickSound } from "@/lib/sounds";
 
+function RejectedScreen() {
+  return (
+    <div className="cart-container">
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "80vh", textAlign: "center", padding: 24 }}>
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" />
+        </svg>
+        <h2 style={{ fontSize: 22, fontWeight: 900, marginTop: 16, color: "#1f2937" }}>Account Rejected</h2>
+        <p style={{ fontSize: 15, color: "var(--color-text-secondary)", fontWeight: 700, marginTop: 8, maxWidth: 400, lineHeight: 1.5 }}>
+          Your account has been rejected by the platform owner.
+        </p>
+        <Link href="/" style={{ marginTop: 20, padding: "12px 28px", borderRadius: 8, background: "var(--color-primary)", color: "white", fontWeight: 800, fontSize: 15, textDecoration: "none" }}>
+          Go to Home
+        </Link>
+      </div>
+    </div>
+  );
+}
 
 export default function CartPage() {
   const router = useRouter();
-  const { loggedIn } = useAuth();
+  const { loggedIn, status } = useAuth();
   const { items, removeItem, updateQuantity, totalItems, totalPrice, clearCart } =
     useCart();
 
@@ -20,6 +38,7 @@ export default function CartPage() {
   }, [loggedIn, router]);
 
   if (!loggedIn) return null;
+  if (status === "rejected") return <RejectedScreen />;
 
 
   const totalSavings = items.reduce(

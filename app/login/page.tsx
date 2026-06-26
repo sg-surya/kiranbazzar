@@ -13,6 +13,17 @@ export default function Login() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [resetMode, setResetMode] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+
+  async function handleReset() {
+    if (!identifier.trim()) { setError("Enter your email or phone"); return; }
+    const email = identifier.trim().includes("@") ? identifier.trim() : `${identifier.trim().replace(/\D/g, "")}@kbuser.local`;
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/login` });
+    if (resetError) { setError(resetError.message); return; }
+    setResetSent(true);
+    setError(null);
+  }
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -140,6 +151,26 @@ export default function Login() {
           </div>
         )}
 
+        {resetSent ? (
+          <div style={{ textAlign: "center", padding: "20px 0" }}>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: "0 auto 12px", display: "block" }}>
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+            <p style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>Reset link sent!</p>
+            <p style={{ fontSize: 13, color: "var(--color-text-muted)", lineHeight: 1.5 }}>Check your email inbox for the password reset link.</p>
+            <button onClick={() => { setResetMode(false); setResetSent(false); setError(null); }} style={{ marginTop: 16, color: "var(--color-primary)", fontWeight: 800, fontSize: 14 }}>Back to Login</button>
+          </div>
+        ) : resetMode ? (
+          <div>
+            <p style={{ fontSize: 14, color: "var(--color-text-secondary)", marginBottom: 16, fontWeight: 700 }}>Enter your email or phone number to receive a password reset link.</p>
+            <div className="input-group" style={{ marginBottom: 14 }}>
+              <label className="label" style={{ fontSize: 12, fontWeight: 900, color: "var(--color-text-secondary)" }}>Email or Phone</label>
+              <input type="text" className="input" value={identifier} onChange={(e) => setIdentifier(e.target.value)} placeholder="e.g. hello@kirana.com" style={{ width: "100%", marginTop: 6, padding: "12px 12px", borderRadius: "var(--radius-md)", border: "1px solid var(--color-border)", background: "white", fontSize: 14, outline: "none" }} />
+            </div>
+            <button onClick={handleReset} className="btn btn-primary" style={{ width: "100%", padding: "14px 16px", borderRadius: "var(--radius-md)", background: "var(--color-primary)", color: "white", fontWeight: 900, fontSize: 15, boxShadow: "0 4px 14px rgba(34, 197, 94, 0.25)" }}>Send Reset Link</button>
+            <button onClick={() => { setResetMode(false); setError(null); }} style={{ display: "block", margin: "14px auto 0", color: "var(--color-text-muted)", fontWeight: 700, fontSize: 13 }}>Back to Login</button>
+          </div>
+        ) : (
         <form onSubmit={handleLogin}>
           <div className="input-group" style={{ marginBottom: 14 }}>
             <label
@@ -180,8 +211,9 @@ export default function Login() {
               }}
             >
               Password
-              <a
-                href="#"
+              <button
+                type="button"
+                onClick={() => { setResetMode(true); setError(null); }}
                 className="text-primary"
                 style={{
                   textTransform: "none",
@@ -189,10 +221,14 @@ export default function Login() {
                   color: "var(--color-primary)",
                   fontWeight: 800,
                   fontSize: 12,
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  fontFamily: "inherit",
                 }}
               >
                 Forgot?
-              </a>
+              </button>
             </label>
             <input
               type="password"
@@ -246,6 +282,7 @@ export default function Login() {
             </Link>
           </p>
         </form>
+        )}
       </div>
     </div>
   );

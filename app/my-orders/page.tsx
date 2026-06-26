@@ -15,7 +15,7 @@ const statusColors: Record<string, string> = {
 };
 
 export default function MyOrdersPage() {
-  const { loggedIn, mobile, name } = useAuth();
+  const { loggedIn, mobile, name, status } = useAuth();
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,6 +37,11 @@ export default function MyOrdersPage() {
   }, [loggedIn, mobile]);
 
   if (!loggedIn) return null;
+  if (status === "rejected") return <RejectedScreen />;
+
+  const totalSpent = orders.reduce((s, o) => s + o.total, 0);
+  const deliveredCount = orders.filter((o) => o.status === "delivered").length;
+  const pendingCount = orders.filter((o) => o.status !== "delivered" && o.status !== "cancelled").length;
 
   return (
     <div className="auth-layout" style={{ padding: 16 }}>
@@ -45,6 +50,27 @@ export default function MyOrdersPage() {
           <Link href="/" style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-muted)", textDecoration: "none" }}>&larr; Back</Link>
           <h1 style={{ fontSize: 24, fontWeight: 900, color: "var(--color-text)", margin: 0 }}>My Orders</h1>
         </div>
+
+        {!loading && orders.length > 0 && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, marginBottom: 20 }}>
+            <div style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 12, padding: 14, textAlign: "center" }}>
+              <div style={{ fontSize: 24, fontWeight: 900, color: "var(--color-text)" }}>{orders.length}</div>
+              <div style={{ fontSize: 12, color: "var(--color-text-muted)", fontWeight: 700, marginTop: 2 }}>Total Orders</div>
+            </div>
+            <div style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 12, padding: 14, textAlign: "center" }}>
+              <div style={{ fontSize: 24, fontWeight: 900, color: "#22C55E" }}>₹{totalSpent}</div>
+              <div style={{ fontSize: 12, color: "var(--color-text-muted)", fontWeight: 700, marginTop: 2 }}>Total Spent</div>
+            </div>
+            <div style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 12, padding: 14, textAlign: "center" }}>
+              <div style={{ fontSize: 24, fontWeight: 900, color: "#22C55E" }}>{deliveredCount}</div>
+              <div style={{ fontSize: 12, color: "var(--color-text-muted)", fontWeight: 700, marginTop: 2 }}>Delivered</div>
+            </div>
+            <div style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 12, padding: 14, textAlign: "center" }}>
+              <div style={{ fontSize: 24, fontWeight: 900, color: "#f59e0b" }}>{pendingCount}</div>
+              <div style={{ fontSize: 12, color: "var(--color-text-muted)", fontWeight: 700, marginTop: 2 }}>Pending</div>
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <div style={{ textAlign: "center", padding: 60, color: "var(--color-text-muted)", fontWeight: 700 }}>
@@ -112,6 +138,21 @@ export default function MyOrdersPage() {
             ))}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function RejectedScreen() {
+  return (
+    <div className="auth-layout" style={{ padding: 16 }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "60vh", textAlign: "center", padding: 24 }}>
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" />
+        </svg>
+        <h2 style={{ fontSize: 22, fontWeight: 900, marginTop: 16, color: "#1f2937" }}>Account Rejected</h2>
+        <p style={{ fontSize: 15, color: "var(--color-text-secondary)", fontWeight: 700, marginTop: 8, maxWidth: 400, lineHeight: 1.5 }}>Your account has been rejected by the platform owner.</p>
+        <Link href="/" style={{ marginTop: 20, padding: "12px 28px", borderRadius: 8, background: "var(--color-primary)", color: "white", fontWeight: 800, fontSize: 15, textDecoration: "none" }}>Go to Home</Link>
       </div>
     </div>
   );

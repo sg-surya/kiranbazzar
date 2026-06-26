@@ -45,6 +45,24 @@ type Tab = "overview" | "products" | "orders" | "settings";
 export default function DashboardPage() {
   const { loggedIn, role, mobile, name, status } = useAuth();
   const router = useRouter();
+
+  if (status === "rejected" || role === "dukandar") {
+    return (
+      <div className="checkout-container">
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "80vh", textAlign: "center", padding: 24 }}>
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke={status === "rejected" ? "#ef4444" : "#f59e0b"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <h2 style={{ fontSize: 22, fontWeight: 900, marginTop: 16, color: "#1f2937" }}>{status === "rejected" ? "Account Rejected" : "Access Denied"}</h2>
+          <p style={{ fontSize: 15, color: "var(--color-text-secondary)", fontWeight: 700, marginTop: 8, maxWidth: 400, lineHeight: 1.5 }}>
+            {status === "rejected" ? "Your account has been rejected by the platform owner." : "Only sellers can access the dashboard."}
+          </p>
+          <Link href="/" style={{ marginTop: 20, padding: "12px 28px", borderRadius: 8, background: "var(--color-primary)", color: "white", fontWeight: 800, fontSize: 15, textDecoration: "none" }}>Go to Home</Link>
+        </div>
+      </div>
+    );
+  }
+
   const [tab, setTab] = useState<Tab>("overview");
   const [products, setProducts] = useState<SellerProduct[]>([]);
   const [cats, setCats] = useState<Category[]>([]);

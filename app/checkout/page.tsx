@@ -98,6 +98,24 @@ export default function CheckoutPage() {
     );
   }
 
+  if (status === "rejected") {
+    return (
+      <div className="checkout-container">
+        <div className="checkout-topbar">
+          <Link href="/" className="pdp-back-btn" aria-label="Go back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5" /><polyline points="12 19 5 12 12 5" /></svg></Link>
+          <h2>Checkout</h2>
+          <div style={{ width: 22 }} />
+        </div>
+        <div className="checkout-pending-msg">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>
+          <h3>Account Rejected</h3>
+          <p>Your account has been rejected by the platform owner. You cannot place orders.</p>
+          <Link href="/" className="checkout-cta">Continue Shopping</Link>
+        </div>
+      </div>
+    );
+  }
+
   if (status === "pending") {
     return (
       <div className="checkout-container">

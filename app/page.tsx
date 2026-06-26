@@ -38,13 +38,23 @@ export default function Home() {
   const [catList, setCatList] = useState(staticCategories);
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [activeCat, setActiveCat] = useState("");
+  const [loading, setLoading] = useState(true);
   const profileRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    getAllProducts().then(setAllProducts);
+    getAllProducts().then(setAllProducts).finally(() => setLoading(false));
     getAllCategories().then(setCatList);
     setWishlist(getWishlist());
   }, []);
+
+  const filtered = allProducts.filter((prod) => {
+    const q = search.toLowerCase().trim();
+    const matchSearch = !q || prod.name.toLowerCase().includes(q) || ("brand" in prod && (prod as any).brand?.toLowerCase().includes(q)) || prod.category?.toLowerCase().includes(q);
+    const matchCat = !activeCat || prod.category === activeCat;
+    return matchSearch && matchCat;
+  });
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -92,7 +102,7 @@ export default function Home() {
             <circle cx="11" cy="11" r="8" />
             <line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
-          <input type="text" placeholder="Search products, brands and more" />
+          <input type="text" placeholder="Search products, brands and more" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <div className="kb-actions">
           <Link href="/cart" className="kb-cart-btn" aria-label="Cart">
@@ -169,8 +179,16 @@ export default function Home() {
       </div>
 
       <div className="category-scroll">
+        <div className={`cat-item${activeCat === "" ? " cat-active" : ""}`} onClick={() => setActiveCat("")}>
+          <div className="cat-circle">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="12" x2="12" y2="12"/>
+            </svg>
+          </div>
+          <div className="cat-name">All</div>
+        </div>
         {catList.map((cat, i) => (
-          <div key={i} className="cat-item">
+          <div key={i} className={`cat-item${activeCat === cat.name ? " cat-active" : ""}`} onClick={() => setActiveCat(cat.name === activeCat ? "" : cat.name)}>
             <div className="cat-circle">
               <CategoryIcon type={cat.icon} />
             </div>
@@ -188,8 +206,30 @@ export default function Home() {
             </svg>
           </span>
         </div>
+        {loading ? (
+          <div className="meesho-product-grid">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="product-card" style={{ padding: 0 }}>
+                <div className="product-img" style={{ background: "#e5e7eb", animation: "pulse 1.5s ease-in-out infinite" }} />
+                <div className="product-info" style={{ gap: 8 }}>
+                  <div style={{ height: 14, background: "#e5e7eb", borderRadius: 4, width: "80%", animation: "pulse 1.5s ease-in-out infinite" }} />
+                  <div style={{ height: 20, background: "#e5e7eb", borderRadius: 4, width: "50%", animation: "pulse 1.5s ease-in-out infinite" }} />
+                  <div style={{ height: 12, background: "#e5e7eb", borderRadius: 4, width: "40%", animation: "pulse 1.5s ease-in-out infinite" }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--color-text-muted)" }}>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: "0 auto 12px", display: "block" }}>
+              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <p style={{ fontWeight: 700, fontSize: 15 }}>No products found</p>
+            <p style={{ fontSize: 13, marginTop: 4 }}>{search ? "Try a different search term" : "No products in this category"}</p>
+          </div>
+        ) : (
         <div className="meesho-product-grid">
-          {allProducts.map((prod) => {
+          {filtered.map((prod) => {
             const discount = Math.round(((prod.mrp - prod.price) / prod.mrp) * 100);
             return (
               <div key={prod.id} className="product-card-wrapper">
@@ -232,7 +272,8 @@ export default function Home() {
             </div>
           );
         })}
-      </div>
+        </div>
+        )}
       </div>
     </div>
   );
