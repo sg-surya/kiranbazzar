@@ -1,35 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { addProfileFromAuth } from "@/lib/data";
 
 type Role = "seller" | "dukandar";
-
-type SellerProfile = {
-  role: "seller";
-  name: string;
-  password: string;
-  address: string;
-  pincode: string;
-  mobileNumber: string;
-  whatsappNumber?: string;
-  status: "pending";
-};
-
-type DukandarProfile = {
-  role: "dukandar";
-  dukanName: string;
-  password: string;
-  address: string;
-  pincode: string;
-  mobileNumber: string;
-  whatsappNumber?: string;
-  status: "pending" | "approved";
-};
-
-type Profile = SellerProfile | DukandarProfile;
 
 function sanitizeDigits(s: string) {
   return (s || "").replace(/\D+/g, "");
@@ -45,29 +21,18 @@ function formatMobileHint(m: string) {
 export default function SignUp() {
   const supabase = createClient();
   const [role, setRole] = useState<Role>("seller");
-  const [useOtp, setUseOtp] = useState<boolean>(true);
 
   const [nameOrDukanName, setNameOrDukanName] = useState("");
   const [address, setAddress] = useState("");
   const [pincode, setPincode] = useState("");
   const [mobileNumber, setMobileNumber] = useState("");
   const [whatsappNumber, setWhatsappNumber] = useState("");
+  const [upiId, setUpiId] = useState("");
+  const [dukanPhoto, setDukanPhoto] = useState("");
   const [password, setPassword] = useState("");
-
-  const [otpSent, setOtpSent] = useState(false);
-  const [otp, setOtp] = useState("");
-  const [otpError, setOtpError] = useState<string | null>(null);
 
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-
-  useEffect(() => {
-    setOtpSent(false);
-    setOtp("");
-    setOtpError(null);
-    setSuccessMsg(null);
-    setError(null);
-  }, [mobileNumber, role]);
 
   const validate = (): string | null => {
     if (!nameOrDukanName.trim()) return role === "seller" ? "Please enter Seller name." : "Please enter Dukandar name.";
@@ -80,41 +45,11 @@ export default function SignUp() {
     return null;
   };
 
-  const sendOtp = () => {
-    const pinErr = validate();
-    if (pinErr) {
-      setError(pinErr);
-      return;
-    }
-    setError(null);
-    setOtpSent(true);
-    setOtpError(null);
-  };
-
-  const confirmOtp = () => {
-    setOtpError(null);
-    if (!otpSent) {
-      setOtpError("Please send OTP first.");
-      return false;
-    }
-    const entered = sanitizeDigits(otp);
-    if (entered.length !== 4) {
-      setOtpError("Please enter a valid 4-digit OTP.");
-      return false;
-    }
-    return true;
-  };
-
   const createProfile = async () => {
     const pinErr = validate();
     if (pinErr) {
       setError(pinErr);
       return;
-    }
-
-    if (useOtp) {
-      const ok = confirmOtp();
-      if (!ok) return;
     }
 
     setError(null);
@@ -153,8 +88,17 @@ export default function SignUp() {
       address: address.trim(),
       pincode: sanitizeDigits(pincode),
       whatsappNumber: wa.length >= 10 ? wa : undefined,
+      photo: role === "dukandar" && dukanPhoto ? dukanPhoto : undefined,
       status: "pending",
     });
+
+    if (role === "seller" && upiId.trim()) {
+      await supabase.from("store_settings").upsert({
+        seller_mobile: mob,
+        upi_id: upiId.trim(),
+        store_name: nameOrDukanName.trim() || "My Store",
+      });
+    }
 
     setSuccessMsg("Profile created successfully. Redirecting...");
     setTimeout(() => {
@@ -254,25 +198,6 @@ export default function SignUp() {
             }}
           >
             Dukandar
-          </button>
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-          <div style={{ fontWeight: 900, color: "var(--color-text-secondary)", fontSize: 13 }}>OTP verification</div>
-          <button
-            type="button"
-            onClick={() => setUseOtp((v) => !v)}
-            style={{
-              padding: "10px 12px",
-              borderRadius: "999px",
-              border: `1px solid ${useOtp ? "var(--color-primary)" : "var(--color-border)"}`,
-              background: useOtp ? "var(--color-primary-light)" : "white",
-              fontWeight: 900,
-              color: "var(--color-text)",
-            }}
-            aria-pressed={useOtp}
-          >
-            {useOtp ? "Enabled" : "Disabled"}
           </button>
         </div>
 
@@ -418,6 +343,46 @@ export default function SignUp() {
           />
         </div>
 
+        {role === "seller" && (
+          <div className="input-group" style={{ marginBottom: 14 }}>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 900, color: "var(--color-text-secondary)" }}>UPI ID <span style={{ fontWeight: 400, color: "var(--color-text-muted)" }}>(for payments)</span></label>
+            <input
+              value={upiId}
+              onChange={(e) => setUpiId(e.target.value)}
+              placeholder="e.g. seller@paytm"
+              style={{
+                width: "100%", marginTop: 6, padding: "12px 12px", borderRadius: "var(--radius-md)",
+                border: "1px solid var(--color-border)", background: "white", fontSize: 14,
+                outline: "none", fontWeight: 700,
+              }}
+            />
+          </div>
+        )}
+
+        {role === "dukandar" && (
+          <div className="input-group" style={{ marginBottom: 14 }}>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 900, color: "var(--color-text-secondary)" }}>Dukan Photo <span style={{ fontWeight: 400, color: "var(--color-text-muted)" }}>(optional)</span></label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                if (file.size > 2 * 1024 * 1024) { alert("Image too large. Max 2MB."); return; }
+                const reader = new FileReader();
+                reader.onload = () => setDukanPhoto(reader.result as string);
+                reader.readAsDataURL(file);
+              }}
+              style={{ marginTop: 6, fontSize: 13, width: "100%" }}
+            />
+            {dukanPhoto && (
+              <div style={{ marginTop: 8 }}>
+                <img src={dukanPhoto} alt="Dukan preview" style={{ width: 80, height: 80, borderRadius: 8, objectFit: "cover", border: "1px solid var(--color-border)" }} />
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="input-group" style={{ marginBottom: 14 }}>
           <label style={{ display: "block", fontSize: 12, fontWeight: 900, color: "var(--color-text-secondary)" }}>
             Password
@@ -441,109 +406,24 @@ export default function SignUp() {
           />
         </div>
 
-        {useOtp ? (
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ fontWeight: 900, color: "var(--color-text-secondary)", fontSize: 13, marginBottom: 8 }}>
-              OTP Verification (Dummy)
-            </div>
-
-            <div style={{ display: "flex", gap: 10 }}>
-              <button
-                type="button"
-                onClick={sendOtp}
-                style={{
-                  flex: 1,
-                  padding: "12px 12px",
-                  borderRadius: "var(--radius-md)",
-                  background: otpSent ? "white" : "var(--color-primary-light)",
-                  border: `1px solid ${otpSent ? "var(--color-border)" : "var(--color-primary)"}`,
-                  color: "var(--color-text)",
-                  fontWeight: 900,
-                }}
-              >
-                {otpSent ? "OTP Sent" : "Send OTP"}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const ok = confirmOtp();
-                  if (!ok) return;
-                  createProfile();
-                }}
-                style={{
-                  flex: 1,
-                  padding: "12px 12px",
-                  borderRadius: "var(--radius-md)",
-                  background: "var(--color-primary)",
-                  border: "2px solid var(--color-primary)",
-                  color: "white",
-                  fontWeight: 900,
-                }}
-              >
-                Verify & Create
-              </button>
-            </div>
-
-            <div style={{ marginTop: 10 }}>
-              <input
-                value={otp}
-                onChange={(e) => setOtp(sanitizeDigits(e.target.value).slice(0, 4))}
-                placeholder="Enter OTP"
-                inputMode="numeric"
-                style={{
-                  width: "100%",
-                  padding: "12px 12px",
-                  borderRadius: "var(--radius-md)",
-                  border: "1px solid var(--color-border)",
-                  background: "white",
-                  fontSize: 14,
-                  outline: "none",
-                  fontWeight: 900,
-                }}
-              />
-
-              <div style={{ marginTop: 8, fontSize: 12, color: "var(--color-text-muted)", fontWeight: 800 }}>
-                OTP sent to your mobile number
-              </div>
-
-              {otpError && (
-                <div
-                  style={{
-                    marginTop: 10,
-                    background: "#fef2f2",
-                    border: "1px solid rgba(239,68,68,0.35)",
-                    color: "#991b1b",
-                    padding: 10,
-                    borderRadius: 10,
-                    fontWeight: 900,
-                    fontSize: 13,
-                  }}
-                >
-                  {otpError}
-                </div>
-              )}
-            </div>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={createProfile}
-            className="btn btn-primary"
-            style={{
-              width: "100%",
-              marginTop: 0,
-              padding: "14px 16px",
-              borderRadius: "var(--radius-md)",
-              background: "var(--color-primary)",
-              color: "white",
-              fontWeight: 900,
-              fontSize: 15,
-              boxShadow: "0 4px 14px rgba(34, 197, 94, 0.25)",
-            }}
-          >
-            Create Profile
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={createProfile}
+          className="btn btn-primary"
+          style={{
+            width: "100%",
+            marginTop: 0,
+            padding: "14px 16px",
+            borderRadius: "var(--radius-md)",
+            background: "var(--color-primary)",
+            color: "white",
+            fontWeight: 900,
+            fontSize: 15,
+            boxShadow: "0 4px 14px rgba(34, 197, 94, 0.25)",
+          }}
+        >
+          Create Profile
+        </button>
 
         <p style={{ textAlign: "center", marginTop: 18, fontWeight: 800, fontSize: 13, color: "var(--color-text-muted)" }}>
           Already have an account?{" "}

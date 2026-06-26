@@ -54,6 +54,27 @@ export default function Home() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [profileOpen]);
 
+  if (loggedIn && status === "rejected") {
+    return (
+      <div className="container">
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "80vh", textAlign: "center", padding: 24 }}>
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="15" y1="9" x2="9" y2="15" />
+            <line x1="9" y1="9" x2="15" y2="15" />
+          </svg>
+          <h2 style={{ fontSize: 22, fontWeight: 900, marginTop: 16, color: "#1f2937" }}>Account Rejected</h2>
+          <p style={{ fontSize: 15, color: "var(--color-text-secondary)", fontWeight: 700, marginTop: 8, maxWidth: 400, lineHeight: 1.5 }}>
+            Your account has been rejected by the platform owner. You cannot access the platform at this time. Please contact support for more information.
+          </p>
+          <button onClick={logout} style={{ marginTop: 20, padding: "12px 28px", borderRadius: 8, border: "none", background: "#ef4444", color: "white", fontWeight: 800, fontSize: 15, cursor: "pointer" }}>
+            Logout
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container">
 
@@ -92,8 +113,10 @@ export default function Home() {
                   <div className="kb-dropdown">
                     <div className="kb-dropdown-header">{name}<span style={{ fontSize: 11, color: "var(--color-text-muted)", fontWeight: 700 }}>{role === "seller" ? " (Seller)" : role === "owner" ? " (Owner)" : role === "dukandar" ? (status === "approved" ? " (Dukandar)" : " (Dukandar · Pending)") : ""}</span></div>
                     <div className="kb-dropdown-divider" />
+                    <Link href="/profile" className="kb-dropdown-item" onClick={() => setProfileOpen(false)}>👤 My Profile</Link>
                     {role === "seller" && <Link href="/dashboard" className="kb-dropdown-item" onClick={() => setProfileOpen(false)}>📊 Dashboard</Link>}
                     {role === "owner" && <Link href="/owner" className="kb-dropdown-item" onClick={() => setProfileOpen(false)}>⚙️ Owner Panel</Link>}
+                    <Link href="/my-orders" className="kb-dropdown-item" onClick={() => setProfileOpen(false)}>📦 My Orders</Link>
                     <Link href="/cart" className="kb-dropdown-item" onClick={() => setProfileOpen(false)}>🛒 My Cart</Link>
                     <button className="kb-dropdown-item kb-dropdown-logout" onClick={() => { setProfileOpen(false); logout(); }}>🚪 Logout</button>
                   </div>

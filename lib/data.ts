@@ -131,6 +131,7 @@ export type SellerProduct = {
   unit: string;
   brand: string;
   stock: number;
+  soldCount: number;
   sku: string;
   tags: string[];
   highlights: string[];
@@ -142,9 +143,13 @@ export type SellerProduct = {
 
 export type AnyProduct = Product | SellerProduct;
 
-export async function getSellerProducts(): Promise<SellerProduct[]> {
+export async function getSellerProducts(sellerMobile?: string): Promise<SellerProduct[]> {
   const supabase = createClient();
-  const { data } = await supabase.from("seller_products").select("*").order("created_at", { ascending: false });
+  let query = supabase.from("seller_products").select("*").order("created_at", { ascending: false });
+  if (sellerMobile) {
+    query = query.eq("seller_mobile", sellerMobile);
+  }
+  const { data } = await query;
   return (data || []).map(mapSellerProduct);
 }
 
@@ -185,6 +190,20 @@ export async function getAllProducts(): Promise<(Product | SellerProduct)[]> {
 
 export type OrderStatus = "pending" | "confirmed" | "shipped" | "delivered" | "cancelled";
 
+export const ORDER_STEPS: { key: OrderStatus; label: string }[] = [
+  { key: "pending", label: "Placed" },
+  { key: "confirmed", label: "Confirmed" },
+  { key: "shipped", label: "Shipped" },
+  { key: "delivered", label: "Delivered" },
+];
+
+export function getOrderProgressIndex(status: OrderStatus): number {
+  if (status === "cancelled") return -1;
+  return ORDER_STEPS.findIndex((s) => s.key === status);
+}
+
+export type PaymentMethod = "cod" | "upi";
+
 export type OrderItem = {
   productId: string;
   productName: string;
@@ -198,13 +217,17 @@ export type Order = {
   id: string;
   items: OrderItem[];
   buyerName: string;
+  buyerDukanName: string;
   buyerPhone: string;
   buyerAddress: string;
   buyerCity: string;
   buyerState: string;
   buyerPincode: string;
+  buyerPhoto: string;
   total: number;
   status: OrderStatus;
+  paymentMethod: PaymentMethod;
+  otp: string;
   createdAt: string;
 };
 
@@ -214,26 +237,76 @@ export async function getAllOrders(): Promise<Order[]> {
   return (data || []).map(mapOrder);
 }
 
-export async function saveOrder(order: Order): Promise<void> {
+export async function saveOrder(order: Order): Promise<boolean> {
   const supabase = createClient();
-  await supabase.from("orders").insert({
+  const { error } = await supabase.from("orders").insert({
     id: order.id,
     items: order.items,
     buyer_name: order.buyerName,
+    buyer_dukan_name: order.buyerDukanName,
     buyer_phone: order.buyerPhone,
     buyer_address: order.buyerAddress,
     buyer_city: order.buyerCity,
     buyer_state: order.buyerState,
     buyer_pincode: order.buyerPincode,
+    buyer_photo: order.buyerPhoto,
     total: order.total,
     status: order.status,
+    payment_method: order.paymentMethod,
+    otp: order.otp,
     created_at: order.createdAt,
   });
+  if (error) {
+    const { error: error2 } = await supabase.from("orders").insert({
+      id: order.id,
+      items: order.items,
+      buyer_name: order.buyerName,
+      buyer_dukan_name: order.buyerDukanName,
+      buyer_phone: order.buyerPhone,
+      buyer_address: order.buyerAddress,
+      buyer_city: order.buyerCity,
+      buyer_state: order.buyerState,
+      buyer_pincode: order.buyerPincode,
+      buyer_photo: order.buyerPhoto,
+      total: order.total,
+      status: order.status,
+      created_at: order.createdAt,
+    });
+    if (error2) {
+      console.error("saveOrder failed (both attempts):", JSON.stringify(error2));
+      return false;
+    }
+  }
+  return true;
 }
 
-export async function updateOrderStatus(orderId: string, status: OrderStatus): Promise<void> {
+export async function updateOrderStatus(orderId: string, status: OrderStatus): Promise<boolean> {
   const supabase = createClient();
-  await supabase.from("orders").update({ status }).eq("id", orderId);
+  const { error } = await supabase.from("orders").update({ status }).eq("id", orderId);
+  if (error) {
+    console.error("updateOrderStatus failed:", error);
+    return false;
+  }
+  return true;
+}
+
+export function generateOTP(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+export async function verifyDeliveryOTP(orderId: string, otp: string): Promise<boolean> {
+  const supabase = createClient();
+  const { data, error } = await supabase.from("orders").select("otp").eq("id", orderId).maybeSingle();
+  if (error || !data) return false;
+  if (data.otp === otp) {
+    const { error: updateError } = await supabase.from("orders").update({ status: "delivered" }).eq("id", orderId);
+    if (updateError) {
+      console.error("verifyDeliveryOTP update failed:", updateError);
+      return false;
+    }
+    return true;
+  }
+  return false;
 }
 
 export async function getOrdersForSeller(mobile: string): Promise<Order[]> {
@@ -246,6 +319,120 @@ export async function getOrdersForBuyer(phone: string): Promise<Order[]> {
   return orders.filter((o) => o.buyerPhone === phone);
 }
 
+/* ── Inventory Management ─────────────────────────────── */
+
+export async function decrementProductStock(productId: string, quantity: number): Promise<boolean> {
+  try {
+    const supabase = createClient();
+    const { data: product } = await supabase.from("seller_products").select("stock, sold_count").eq("id", productId).maybeSingle();
+    if (!product) return false;
+    const newStock = Math.max(0, (product.stock || 0) - quantity);
+    const newSold = (product.sold_count || 0) + quantity;
+    const updates: Record<string, any> = { stock: newStock, sold_count: newSold };
+    if (newStock <= 0) updates.available = false;
+    const { error } = await supabase.from("seller_products").update(updates).eq("id", productId);
+    return !error;
+  } catch { return false; }
+}
+
+export type InventoryStats = {
+  totalProducts: number;
+  activeProducts: number;
+  soldUnits: number;
+  remainingStock: number;
+  outOfStock: number;
+};
+
+export async function getSellerInventoryStats(mobile: string): Promise<InventoryStats> {
+  const products = await getSellerProducts(mobile);
+  const stats: InventoryStats = {
+    totalProducts: products.length,
+    activeProducts: products.filter((p) => p.available).length,
+    soldUnits: products.reduce((s, p) => s + (p.soldCount || 0), 0),
+    remainingStock: products.reduce((s, p) => s + (p.stock || 0), 0),
+    outOfStock: products.filter((p) => p.stock <= 0).length,
+  };
+  return stats;
+}
+
+/* ── Sales Analytics (Owner) ──────────────────────────── */
+
+export type DailySale = { date: string; total: number; count: number };
+export type MonthlySale = { month: string; total: number; count: number };
+
+export async function getSalesAnalytics(): Promise<{ daily: DailySale[]; monthly: MonthlySale[] }> {
+  const orders = await getAllOrders();
+  const delivered = orders.filter((o) => o.status === "delivered");
+
+  const dailyMap = new Map<string, { total: number; count: number }>();
+  const monthlyMap = new Map<string, { total: number; count: number }>();
+
+  for (const o of delivered) {
+    const d = new Date(o.createdAt);
+    const dayKey = d.toISOString().slice(0, 10);
+    const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+
+    const day = dailyMap.get(dayKey) || { total: 0, count: 0 };
+    day.total += o.total;
+    day.count += 1;
+    dailyMap.set(dayKey, day);
+
+    const month = monthlyMap.get(monthKey) || { total: 0, count: 0 };
+    month.total += o.total;
+    month.count += 1;
+    monthlyMap.set(monthKey, month);
+  }
+
+  const daily = Array.from(dailyMap.entries()).map(([date, data]) => ({ date, ...data })).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 30);
+  const monthly = Array.from(monthlyMap.entries()).map(([month, data]) => ({ month, ...data })).sort((a, b) => b.month.localeCompare(a.month));
+
+  return { daily, monthly };
+}
+
+/* ── Seller Online Status ─────────────────────────────── */
+
+export async function toggleSellerOnlineStatus(mobile: string, isOnline: boolean): Promise<boolean> {
+  try {
+    const supabase = createClient();
+    const existing = await supabase.from("store_settings").select("id").eq("seller_mobile", mobile).maybeSingle();
+    if (existing.data) {
+      const { error } = await supabase.from("store_settings").update({ is_online: isOnline }).eq("id", existing.data.id);
+      return !error;
+    }
+    return false;
+  } catch { return false; }
+}
+
+export async function getSellerOnlineStatus(mobile: string): Promise<boolean> {
+  try {
+    const supabase = createClient();
+    const { data } = await supabase.from("store_settings").select("is_online").eq("seller_mobile", mobile).maybeSingle();
+    return data?.is_online !== false;
+  } catch { return true; }
+}
+
+/* ── Order Deletion (Owner) ───────────────────────────── */
+
+export async function deleteOrder(orderId: string): Promise<boolean> {
+  try {
+    const supabase = createClient();
+    const { error } = await supabase.from("orders").delete().eq("id", orderId);
+    return !error;
+  } catch { return false; }
+}
+
+export async function deleteOrdersBeforeDate(date: string): Promise<number> {
+  try {
+    const supabase = createClient();
+    const { data, error } = await supabase.from("orders").select("id").lt("created_at", date);
+    if (error || !data) return 0;
+    const ids = data.map((r: any) => r.id);
+    if (ids.length === 0) return 0;
+    const { error: delErr } = await supabase.from("orders").delete().in("id", ids);
+    return delErr ? 0 : ids.length;
+  } catch { return 0; }
+}
+
 /* ── Store Settings ───────────────────────────────────── */
 
 export type StoreSettings = {
@@ -255,7 +442,9 @@ export type StoreSettings = {
   deliveryRadius: string;
   returnPolicy: string;
   upiId: string;
+  upiQr: string;
   storeAddress: string;
+  isOnline: boolean;
 };
 
 export async function getStoreSettings(mobile: string): Promise<StoreSettings> {
@@ -270,7 +459,9 @@ export async function getStoreSettings(mobile: string): Promise<StoreSettings> {
         deliveryRadius: data.delivery_radius || "10",
         returnPolicy: data.return_policy || "7-day return accepted",
         upiId: data.upi_id || "",
+        upiQr: data.upi_qr || "",
         storeAddress: data.store_address || "",
+        isOnline: data.is_online !== false,
       };
     }
   } catch {}
@@ -281,7 +472,9 @@ export async function getStoreSettings(mobile: string): Promise<StoreSettings> {
     deliveryRadius: "10",
     returnPolicy: "7-day return accepted",
     upiId: "",
+    upiQr: "",
     storeAddress: "",
+    isOnline: true,
   };
 }
 
@@ -296,13 +489,54 @@ export async function saveStoreSettings(mobile: string, settings: StoreSettings)
     delivery_radius: settings.deliveryRadius,
     return_policy: settings.returnPolicy,
     upi_id: settings.upiId,
+    upi_qr: settings.upiQr,
     store_address: settings.storeAddress,
+    is_online: settings.isOnline,
   };
   if (existing.data) {
     await supabase.from("store_settings").update(row).eq("id", existing.data.id);
   } else {
     await supabase.from("store_settings").insert(row);
   }
+}
+
+export async function getDukandarProfile(mobile: string): Promise<{
+  name: string;
+  dukanName: string;
+  address: string;
+  pincode: string;
+  photo: string;
+} | null> {
+  try {
+    const supabase = createClient();
+    const { data } = await supabase.from("profiles").select("name, dukan_name, address, pincode, photo").eq("mobile_number", mobile).maybeSingle();
+    if (data) {
+      return {
+        name: data.name || "",
+        dukanName: data.dukan_name || "",
+        address: data.address || "",
+        pincode: data.pincode || "",
+        photo: data.photo || "",
+      };
+    }
+  } catch {}
+  return null;
+}
+
+export async function getStoreSettingsMap(mobiles: string[]): Promise<Record<string, Pick<StoreSettings, "upiId" | "upiQr" | "storeName">>> {
+  if (mobiles.length === 0) return {};
+  const supabase = createClient();
+  const unique = [...new Set(mobiles.filter(Boolean))];
+  const { data } = await supabase.from("store_settings").select("seller_mobile, upi_id, upi_qr, store_name").in("seller_mobile", unique);
+  const map: Record<string, any> = {};
+  for (const row of data || []) {
+    map[row.seller_mobile] = {
+      upiId: row.upi_id || "",
+      upiQr: row.upi_qr || "",
+      storeName: row.store_name || "Store",
+    };
+  }
+  return map;
 }
 
 /* ── User / Admin System ───────────────────────────── */
@@ -365,6 +599,25 @@ export async function deleteUser(mobile: string): Promise<void> {
   await fetch(`/api/profiles?mobile=${encodeURIComponent(mobile)}`, { method: "DELETE" });
 }
 
+export async function getProfileByMobile(mobile: string): Promise<Record<string, any> | null> {
+  try {
+    const supabase = createClient();
+    const { data } = await supabase.from("profiles").select("*").eq("mobile_number", mobile).maybeSingle();
+    return data;
+  } catch { return null; }
+}
+
+export async function updateProfile(mobile: string, updates: Record<string, any>): Promise<boolean> {
+  try {
+    const res = await fetch("/api/profiles", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mobile_number: mobile, updates }),
+    });
+    return res.ok;
+  } catch { return false; }
+}
+
 export async function getUsersByRole(role: string): Promise<StoredUser[]> {
   const users = await getAllUsers();
   return users.filter((u) => u.role === role);
@@ -378,6 +631,7 @@ export async function addProfileFromAuth(userId: string, profile: {
   address?: string;
   pincode?: string;
   whatsappNumber?: string;
+  photo?: string;
   status?: string;
 }): Promise<void> {
   const supabase = createClient();
@@ -392,6 +646,7 @@ export async function addProfileFromAuth(userId: string, profile: {
   if (profile.address) row.address = profile.address;
   if (profile.pincode) row.pincode = profile.pincode;
   if (profile.whatsappNumber) row.whatsapp_number = profile.whatsappNumber;
+  if (profile.photo) row.photo = profile.photo;
   await supabase.from("profiles").upsert(row);
 }
 
@@ -466,6 +721,7 @@ function mapSellerProduct(p: any): SellerProduct {
     unit: p.unit || "1 kg",
     brand: p.brand || "",
     stock: p.stock || 0,
+    soldCount: p.sold_count || 0,
     sku: p.sku || "",
     tags: p.tags || [],
     highlights: p.highlights || [],
@@ -481,13 +737,17 @@ function mapOrder(o: any): Order {
     id: o.id,
     items: o.items || [],
     buyerName: o.buyer_name || "",
+    buyerDukanName: o.buyer_dukan_name || "",
     buyerPhone: o.buyer_phone || "",
     buyerAddress: o.buyer_address || "",
     buyerCity: o.buyer_city || "",
     buyerState: o.buyer_state || "",
     buyerPincode: o.buyer_pincode || "",
+    buyerPhoto: o.buyer_photo || "",
     total: Number(o.total),
     status: o.status || "pending",
+    paymentMethod: o.payment_method || "cod",
+    otp: o.otp || "",
     createdAt: o.created_at || new Date().toISOString(),
   };
 }

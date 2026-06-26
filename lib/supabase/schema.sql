@@ -1,6 +1,14 @@
 -- Kirana Bazzar Supabase Schema
 -- Run this in your Supabase SQL Editor to set up the database
 
+-- ══════════════════════════════════════════════════════════
+-- MIGRATIONS (run if tables already exist)
+-- ══════════════════════════════════════════════════════════
+-- ALTER TABLE seller_products ADD COLUMN IF NOT EXISTS sold_count INTEGER DEFAULT 0;
+-- ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS is_online BOOLEAN DEFAULT true;
+-- DROP POLICY IF EXISTS "orders_delete_all" ON orders;
+-- CREATE POLICY "orders_delete_all" ON orders FOR DELETE USING (true);
+
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
@@ -15,6 +23,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   mobile_number TEXT UNIQUE,
   whatsapp_number TEXT,
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  photo TEXT DEFAULT '',
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -50,6 +59,7 @@ CREATE TABLE IF NOT EXISTS seller_products (
   unit TEXT DEFAULT '1 kg',
   brand TEXT DEFAULT '',
   stock INTEGER DEFAULT 0,
+  sold_count INTEGER DEFAULT 0,
   sku TEXT DEFAULT '',
   tags JSONB DEFAULT '[]',
   highlights JSONB DEFAULT '[]',
@@ -64,15 +74,31 @@ CREATE TABLE IF NOT EXISTS orders (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   items JSONB NOT NULL DEFAULT '[]',
   buyer_name TEXT NOT NULL,
+  buyer_dukan_name TEXT DEFAULT '',
   buyer_phone TEXT NOT NULL,
   buyer_address TEXT DEFAULT '',
   buyer_city TEXT DEFAULT '',
   buyer_state TEXT DEFAULT '',
   buyer_pincode TEXT DEFAULT '',
+  buyer_photo TEXT DEFAULT '',
   total DECIMAL(10,2) NOT NULL,
   status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'shipped', 'delivered', 'cancelled')),
+  payment_method TEXT DEFAULT 'cod' CHECK (payment_method IN ('cod', 'upi')),
+  otp TEXT DEFAULT '',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Migration for existing tables
+-- ALTER TABLE profiles ADD COLUMN IF NOT EXISTS photo TEXT DEFAULT '';
+-- ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS upi_qr TEXT DEFAULT '';
+-- Migration for existing orders table
+-- Run these separately if the table already exists:
+-- ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method TEXT DEFAULT 'cod' CHECK (payment_method IN ('cod', 'upi'));
+-- ALTER TABLE orders ADD COLUMN IF NOT EXISTS otp TEXT DEFAULT '';
+-- DROP POLICY IF EXISTS "orders_insert_all" ON orders;
+-- DROP POLICY IF EXISTS "orders_update_all" ON orders;
+-- CREATE POLICY "orders_insert_all" ON orders FOR INSERT WITH CHECK (true);
+-- CREATE POLICY "orders_update_all" ON orders FOR UPDATE USING (true);
 
 -- 5. CATEGORIES
 CREATE TABLE IF NOT EXISTS categories (
@@ -93,7 +119,9 @@ CREATE TABLE IF NOT EXISTS store_settings (
   delivery_radius TEXT DEFAULT '10',
   return_policy TEXT DEFAULT '7-day return accepted',
   upi_id TEXT DEFAULT '',
+  upi_qr TEXT DEFAULT '',
   store_address TEXT DEFAULT '',
+  is_online BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -197,8 +225,10 @@ CREATE POLICY "seller_products_insert_all" ON seller_products FOR INSERT WITH CH
 CREATE POLICY "seller_products_update_all" ON seller_products FOR UPDATE USING (true);
 CREATE POLICY "seller_products_delete_all" ON seller_products FOR DELETE USING (true);
 
--- Orders: users can see their own / owners can see all
-CREATE POLICY "orders_select_own" ON orders FOR SELECT USING (true); -- simplified: app-level filtering
+-- Orders: users can see all, authenticated users can insert/update
+CREATE POLICY "orders_select_all" ON orders FOR SELECT USING (true);
+CREATE POLICY "orders_insert_all" ON orders FOR INSERT WITH CHECK (true);
+CREATE POLICY "orders_update_all" ON orders FOR UPDATE USING (true);
 
 -- Categories: public read
 CREATE POLICY "categories_select_all" ON categories FOR SELECT USING (true);

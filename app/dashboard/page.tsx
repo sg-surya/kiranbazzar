@@ -4,6 +4,7 @@ import Link from "next/link";
 import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useAuth } from "@/app/context/AuthContext";
 import { useRouter } from "next/navigation";
+import { playClickSound } from "@/lib/sounds";
 import {
   SellerProduct,
   getSellerProducts,
@@ -13,12 +14,18 @@ import {
   saveAllCategories,
   getOrdersForSeller,
   updateOrderStatus,
+  verifyDeliveryOTP,
   getStoreSettings,
   saveStoreSettings,
+  getSellerInventoryStats,
+  toggleSellerOnlineStatus,
+  ORDER_STEPS,
+  getOrderProgressIndex,
   type Order,
   type OrderStatus,
   type StoreSettings,
   type Category,
+  type InventoryStats,
 } from "@/lib/data";
 
 const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
@@ -62,6 +69,8 @@ export default function DashboardPage() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [otpInputs, setOtpInputs] = useState<Record<string, string>>({});
+  const [otpErrors, setOtpErrors] = useState<Record<string, string>>({});
   const [settings, setSettings] = useState<StoreSettings>({
     storeName: "My Store",
     storeDescription: "",
@@ -69,15 +78,19 @@ export default function DashboardPage() {
     deliveryRadius: "10",
     returnPolicy: "7-day return accepted",
     upiId: "",
+    upiQr: "",
     storeAddress: "",
+    isOnline: true,
   });
+  const [inventoryStats, setInventoryStats] = useState<InventoryStats | null>(null);
 
   const loadData = useCallback(async () => {
-    setProducts(await getSellerProducts());
+    setProducts(await getSellerProducts(mobile || undefined));
     setCats(await getAllCategories());
     if (mobile) {
       setOrders(await getOrdersForSeller(mobile));
       setSettings(await getStoreSettings(mobile));
+      setInventoryStats(await getSellerInventoryStats(mobile));
     }
   }, [mobile]);
 
@@ -121,6 +134,7 @@ export default function DashboardPage() {
       unit: productForm.unit,
       brand: productForm.brand.trim(),
       stock: Math.max(0, Number(productForm.stock) || 0),
+      soldCount: 0,
       sku: productForm.sku.trim(),
       tags: productForm.tags.split(",").map((t) => t.trim()).filter(Boolean),
       highlights: productForm.highlights.split("\n").map((h) => h.trim()).filter(Boolean),
@@ -213,6 +227,22 @@ export default function DashboardPage() {
     await loadData();
   }
 
+  async function handleOTPDelivery(orderId: string) {
+    const otp = otpInputs[orderId];
+    if (!otp || otp.length !== 6) {
+      setOtpErrors((prev) => ({ ...prev, [orderId]: "Please enter a valid 6-digit OTP" }));
+      return;
+    }
+    const ok = await verifyDeliveryOTP(orderId, otp);
+    if (ok) {
+      setOtpErrors((prev) => ({ ...prev, [orderId]: "" }));
+      setOtpInputs((prev) => ({ ...prev, [orderId]: "" }));
+      await loadData();
+    } else {
+      setOtpErrors((prev) => ({ ...prev, [orderId]: "Invalid OTP. Please check with the buyer." }));
+    }
+  }
+
   const statusColors: Record<OrderStatus, string> = {
     pending: "#fef3c7", confirmed: "#e0e7ff", shipped: "#dbeafe", delivered: "#d1fae5", cancelled: "#fef2f2",
   };
@@ -283,19 +313,63 @@ export default function DashboardPage() {
 
         {tab === "overview" && (
           <div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 20 }}>
+            <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 16 }}>
+              <div style={{ flex: 1, fontSize: 16, fontWeight: 800, color: "var(--color-text)" }}>Store Status</div>
+              <button
+                onClick={async () => {
+                  if (!mobile) return;
+                  const next = !settings.isOnline;
+                  const ok = await toggleSellerOnlineStatus(mobile, next);
+                  if (ok) setSettings({ ...settings, isOnline: next });
+                }}
+                style={{
+                  display: "flex", alignItems: "center", gap: 8,
+                  padding: "8px 18px", borderRadius: 20, border: "none",
+                  background: settings.isOnline ? "#d1fae5" : "#fef2f2",
+                  color: settings.isOnline ? "#065f46" : "#991b1b",
+                  fontWeight: 800, fontSize: 13, cursor: "pointer",
+                }}
+              >
+                <span style={{ width: 10, height: 10, borderRadius: "50%", background: settings.isOnline ? "#22C55E" : "#ef4444", display: "inline-block" }} />
+                {settings.isOnline ? "Online — Accepting Orders" : "Offline"}
+              </button>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 20 }}>
               {[
-                { label: "Total Products", value: products.length, color: "#e0e7ff" },
-                { label: "Active Products", value: products.filter((p) => p.available).length, color: "#d1fae5" },
+                { label: "Total Products", value: inventoryStats?.totalProducts ?? products.length, color: "#e0e7ff" },
+                { label: "Active Products", value: inventoryStats?.activeProducts ?? products.filter((p) => p.available).length, color: "#d1fae5" },
+                { label: "Sold Units", value: inventoryStats?.soldUnits ?? 0, color: "#f3e8ff" },
+                { label: "Remaining Stock", value: inventoryStats?.remainingStock ?? 0, color: "#dbeafe" },
+                { label: "Out of Stock", value: inventoryStats?.outOfStock ?? 0, color: inventoryStats && inventoryStats.outOfStock > 0 ? "#fef2f2" : "#d1fae5" },
                 { label: "Pending Orders", value: pendingOrders, color: "#fef3c7" },
                 { label: "Completed Orders", value: orders.filter((o) => o.status === "delivered").length, color: "#dbeafe" },
                 { label: "Total Earnings", value: `₹${totalEarnings}`, color: "#f3e8ff" },
               ].map((s) => (
-                <div key={s.label} style={{ background: s.color, borderRadius: 12, padding: 18, textAlign: "center" }}>
-                  <div style={{ fontSize: 28, fontWeight: 900, color: "#1f2937" }}>{s.value}</div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#4b5563", marginTop: 4 }}>{s.label}</div>
+                <div key={s.label} style={{ background: s.color, borderRadius: 12, padding: 16, textAlign: "center" }}>
+                  <div style={{ fontSize: 26, fontWeight: 900, color: "#1f2937" }}>{s.value}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#4b5563", marginTop: 4 }}>{s.label}</div>
                 </div>
               ))}
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
+              <div style={{ background: "var(--color-surface)", borderRadius: 12, border: "1px solid var(--color-border)", padding: 16 }}>
+                <h3 style={{ fontSize: 14, fontWeight: 800, marginBottom: 8 }}>📍 Delivery Info</h3>
+                <div style={{ fontSize: 13, color: "var(--color-text-secondary)", fontWeight: 700, display: "flex", flexDirection: "column", gap: 4 }}>
+                  <span>Radius: <strong style={{ color: "#1f2937" }}>{settings.deliveryRadius} km</strong></span>
+                  {settings.storeAddress && <span>Address: <strong style={{ color: "#1f2937" }}>{settings.storeAddress}</strong></span>}
+                  <span>UPI: <strong style={{ color: "#1f2937" }}>{settings.upiId || "Not set"}</strong></span>
+                </div>
+              </div>
+              <div style={{ background: "var(--color-surface)", borderRadius: 12, border: "1px solid var(--color-border)", padding: 16 }}>
+                <h3 style={{ fontSize: 14, fontWeight: 800, marginBottom: 8 }}>📊 Quick Actions</h3>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <button onClick={() => { resetProductForm(); setTab("products"); }} style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: "#e0e7ff", fontWeight: 800, fontSize: 12, cursor: "pointer", textAlign: "left" }}>+ Add Product</button>
+                  <button onClick={() => setTab("orders")} style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: "#fef3c7", fontWeight: 800, fontSize: 12, cursor: "pointer", textAlign: "left" }}>📦 View Orders ({pendingOrders})</button>
+                  <button onClick={() => setTab("settings")} style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: "#f3e8ff", fontWeight: 800, fontSize: 12, cursor: "pointer", textAlign: "left" }}>⚙️ Store Settings</button>
+                </div>
+              </div>
             </div>
 
             {orders.length === 0 ? (
@@ -567,18 +641,28 @@ export default function DashboardPage() {
                       ))}
                     </div>
 
-                    <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: 10, fontSize: 13, color: "var(--color-text-secondary)", fontWeight: 700, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
-                      <span>Buyer: {o.buyerName}</span>
-                      <span>Phone: {o.buyerPhone}</span>
-                      <span style={{ gridColumn: "1 / -1" }}>Address: {o.buyerAddress}, {o.buyerCity}, {o.buyerState} - {o.buyerPincode}</span>
-                      <span style={{ gridColumn: "1 / -1", fontWeight: 900, fontSize: 15, color: "#1f2937" }}>Total: ₹{o.total}</span>
+                    <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: 10, display: "flex", gap: 12, alignItems: "flex-start", marginBottom: 10 }}>
+                      {o.buyerPhoto && (
+                        <img src={o.buyerPhoto} alt="Dukan" style={{ width: 50, height: 50, borderRadius: 8, objectFit: "cover", border: "1px solid var(--color-border)", flexShrink: 0 }} />
+                      )}
+                      <div style={{ flex: 1, fontSize: 13, color: "var(--color-text-secondary)", fontWeight: 700, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
+                        <span>Buyer: <strong style={{ color: "#1f2937" }}>{o.buyerName}</strong></span>
+                        <span>Phone: <strong style={{ color: "#1f2937" }}>{o.buyerPhone}</strong></span>
+                        {o.buyerDukanName && <span style={{ gridColumn: "1 / -1" }}>Dukan: <strong style={{ color: "#1f2937" }}>{o.buyerDukanName}</strong></span>}
+                        <span>Payment: {o.paymentMethod === "cod" ? "Cash on Delivery" : "UPI / Online"}</span>
+                        <span>Status: {o.status.toUpperCase()}</span>
+                        <span style={{ gridColumn: "1 / -1" }}>Address: {o.buyerAddress}, {o.buyerCity}, {o.buyerState} - {o.buyerPincode}</span>
+                        <span style={{ gridColumn: "1 / -1", fontWeight: 900, fontSize: 15, color: "#1f2937" }}>Total: ₹{o.total}</span>
+                      </div>
                     </div>
 
-                    <div style={{ marginTop: 12, display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      {(["pending", "confirmed", "shipped", "delivered", "cancelled"] as OrderStatus[]).map((s) => (
+                    <OrderProgress status={o.status} />
+
+                    <div style={{ marginTop: 12, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                      {(["pending", "confirmed", "shipped", "cancelled"] as OrderStatus[]).map((s) => (
                         <button
                           key={s}
-                          onClick={() => handleOrderStatusChange(o.id, s)}
+                          onClick={() => { playClickSound(); handleOrderStatusChange(o.id, s); }}
                           style={{
                             padding: "6px 14px", borderRadius: 6,
                             border: o.status === s ? "2px solid #1f2937" : "1px solid var(--color-border)",
@@ -589,6 +673,41 @@ export default function DashboardPage() {
                           {s}
                         </button>
                       ))}
+                      {o.status !== "delivered" && o.status !== "cancelled" && (
+                        <div style={{ display: "flex", gap: 6, alignItems: "center", marginLeft: 8 }}>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            maxLength={6}
+                            placeholder="Enter OTP"
+                            value={otpInputs[o.id] || ""}
+                            onChange={(e) => {
+                              setOtpInputs((prev) => ({ ...prev, [o.id]: e.target.value.replace(/\D/g, "").slice(0, 6) }));
+                              setOtpErrors((prev) => ({ ...prev, [o.id]: "" }));
+                            }}
+                            style={{
+                              width: 110, padding: "6px 10px", borderRadius: 6, border: "1px solid var(--color-border)",
+                              fontSize: 14, fontWeight: 800, textAlign: "center", letterSpacing: 4,
+                            }}
+                          />
+                          <button
+                            onClick={() => { playClickSound(); handleOTPDelivery(o.id); }}
+                            style={{
+                              padding: "6px 14px", borderRadius: 6, border: "none",
+                              background: "#d1fae5", color: "#065f46", fontWeight: 800, fontSize: 12,
+                              cursor: "pointer",
+                            }}
+                          >
+                            Verify & Deliver
+                          </button>
+                        </div>
+                      )}
+                      {o.status === "delivered" && (
+                        <span style={{ padding: "6px 14px", borderRadius: 6, background: "#d1fae5", color: "#065f46", fontWeight: 800, fontSize: 12 }}>✅ Delivered</span>
+                      )}
+                      {otpErrors[o.id] && (
+                        <div style={{ width: "100%", fontSize: 12, color: "#ef4444", fontWeight: 700, marginTop: 4 }}>{otpErrors[o.id]}</div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -617,6 +736,23 @@ export default function DashboardPage() {
                 <label style={{ display: "block", fontSize: 12, fontWeight: 800, color: "var(--color-text-secondary)", marginBottom: 4 }}>UPI ID (for payments)</label>
                 <input value={settings.upiId} onChange={(e) => setSettings({ ...settings, upiId: e.target.value })} placeholder="seller@upi" style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid var(--color-border)", fontSize: 14 }} />
               </div>
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 800, color: "var(--color-text-secondary)", marginBottom: 4 }}>UPI QR Code</label>
+                <input type="file" accept="image/*" onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  if (file.size > 2 * 1024 * 1024) { alert("Image too large. Max 2MB."); return; }
+                  const reader = new FileReader();
+                  reader.onload = () => setSettings({ ...settings, upiQr: reader.result as string });
+                  reader.readAsDataURL(file);
+                }} style={{ fontSize: 13, width: "100%" }} />
+                {settings.upiQr && (
+                  <div style={{ marginTop: 6, position: "relative", display: "inline-block" }}>
+                    <img src={settings.upiQr} alt="UPI QR" style={{ width: 100, height: 100, borderRadius: 8, objectFit: "contain", border: "1px solid var(--color-border)" }} />
+                    <button type="button" onClick={() => setSettings({ ...settings, upiQr: "" })} style={{ position: "absolute", top: -6, right: -6, width: 20, height: 20, borderRadius: "50%", border: "none", background: "#ef4444", color: "white", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
+                  </div>
+                )}
+              </div>
               <div style={{ gridColumn: "1 / -1" }}>
                 <label style={{ display: "block", fontSize: 12, fontWeight: 800, color: "var(--color-text-secondary)", marginBottom: 4 }}>Store Address</label>
                 <input value={settings.storeAddress} onChange={(e) => setSettings({ ...settings, storeAddress: e.target.value })} placeholder="Your store location" style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid var(--color-border)", fontSize: 14 }} />
@@ -634,6 +770,32 @@ export default function DashboardPage() {
           </form>
         )}
       </div>
+    </div>
+  );
+}
+
+function OrderProgress({ status }: { status: OrderStatus }) {
+  const progressIdx = getOrderProgressIndex(status);
+  const isCancelled = status === "cancelled";
+  return (
+    <div className="order-progress" style={{ margin: "8px 0" }}>
+      {ORDER_STEPS.map((step, i) => {
+        let cls = "";
+        if (isCancelled) cls = "cancelled";
+        else if (i < progressIdx) cls = "completed";
+        else if (i === progressIdx) cls = "active";
+        return (
+          <div key={step.key} className="order-progress-step">
+            <div className={`order-progress-circle ${cls}`}>
+              {i < progressIdx && !isCancelled ? "✓" : isCancelled ? "✕" : i + 1}
+            </div>
+            <div className={`order-progress-label ${cls}`}>{step.label}</div>
+            {i < ORDER_STEPS.length - 1 && (
+              <div className={`order-progress-line ${i < progressIdx && !isCancelled ? "completed" : ""}`} />
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

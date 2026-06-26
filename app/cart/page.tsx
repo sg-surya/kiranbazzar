@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useCart } from "@/app/context/CartContext";
 import { useAuth } from "@/app/context/AuthContext";
 import { useRouter } from "next/navigation";
+import { playClickSound } from "@/lib/sounds";
 
 
 export default function CartPage() {
@@ -130,9 +131,10 @@ export default function CartPage() {
                 </div>
                 <div className="cart-qty-controls">
                   <button
-                    onClick={() =>
-                      updateQuantity(item.product.id, item.quantity - 1)
-                    }
+                    onClick={() => {
+                      playClickSound();
+                      updateQuantity(item.product.id, item.quantity - 1);
+                    }}
                     className="cart-qty-btn"
                     aria-label="Decrease quantity"
                   >
@@ -142,9 +144,10 @@ export default function CartPage() {
                   </button>
                   <span className="cart-qty-value">{item.quantity}</span>
                   <button
-                    onClick={() =>
-                      updateQuantity(item.product.id, item.quantity + 1)
-                    }
+                    onClick={() => {
+                      playClickSound();
+                      updateQuantity(item.product.id, item.quantity + 1);
+                    }}
                     className="cart-qty-btn"
                     aria-label="Increase quantity"
                   >
@@ -154,7 +157,10 @@ export default function CartPage() {
                     </svg>
                   </button>
                   <button
-                    onClick={() => removeItem(item.product.id)}
+                    onClick={() => {
+                      playClickSound();
+                      removeItem(item.product.id);
+                    }}
                     className="cart-remove-btn"
                     aria-label="Remove item"
                   >
@@ -203,7 +209,7 @@ export default function CartPage() {
         </div>
         <button
           className="cart-checkout-btn"
-          onClick={() => router.push("/checkout")}
+          onClick={() => { playClickSound(); router.push("/checkout"); }}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />

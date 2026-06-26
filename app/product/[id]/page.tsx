@@ -6,6 +6,7 @@ import Link from "next/link";
 import { getAnyProductById, getWishlist, toggleWishlist, type AnyProduct } from "@/lib/data";
 import { useCart } from "@/app/context/CartContext";
 import { useRouter } from "next/navigation";
+import { playClickSound } from "@/lib/sounds";
 
 export default function ProductPage({
   params,
@@ -52,10 +53,12 @@ export default function ProductPage({
   }, [slides.length]);
 
   const handleAddToCart = () => {
+    playClickSound();
     if (product) addItem(product);
   };
 
   const handleBuyNow = () => {
+    playClickSound();
     if (product) addItem(product);
     router.push("/checkout");
   };

@@ -17,12 +17,20 @@ import {
   savePlatformSettings,
   saveUser,
   deleteUser,
+  getSalesAnalytics,
+  deleteOrder,
+  deleteOrdersBeforeDate,
+  getOrdersForSeller,
+  SellerProduct,
+  getSellerProducts,
   type StoredUser,
   type Order,
   type OrderStatus,
   type Category,
   type PlatformSettings,
   type AnyProduct,
+  type DailySale,
+  type MonthlySale,
 } from "@/lib/data";
 
 type OwnerTab = "overview" | "users" | "products" | "orders" | "categories" | "settings";
@@ -45,6 +53,12 @@ export default function OwnerPage() {
   });
   const [showAddUser, setShowAddUser] = useState(false);
   const [newUser, setNewUser] = useState({ role: "seller" as "seller" | "dukandar", name: "", mobile: "", whatsapp: "", password: "", address: "", pincode: "", status: "approved" as "pending" | "approved" });
+  const [dailySales, setDailySales] = useState<DailySale[]>([]);
+  const [monthlySales, setMonthlySales] = useState<MonthlySale[]>([]);
+  const [viewingSeller, setViewingSeller] = useState<string | null>(null);
+  const [sellerProducts, setSellerProducts] = useState<SellerProduct[]>([]);
+  const [sellerOrders, setSellerOrders] = useState<Order[]>([]);
+  const [deleteBeforeDate, setDeleteBeforeDate] = useState("");
 
   async function loadData() {
     setUsers(await getAllUsers());
@@ -52,6 +66,9 @@ export default function OwnerPage() {
     setAllOrders(await getAllOrders());
     setCats(await getAllCategories());
     setPlatForm(await getPlatformSettings());
+    const analytics = await getSalesAnalytics();
+    setDailySales(analytics.daily);
+    setMonthlySales(analytics.monthly);
   }
 
   useEffect(() => {
@@ -103,6 +120,15 @@ export default function OwnerPage() {
   }
   async function handleOrderStatus(orderId: string, status: OrderStatus) { await updateOrderStatus(orderId, status); await loadData(); }
   async function handleDeleteProduct(id: string) { if (!confirm("Delete this product?")) return; await deleteSellerProduct(id); await loadData(); }
+  async function handleDeleteOrder(orderId: string) { if (!confirm("Delete this order?")) return; await deleteOrder(orderId); await loadData(); }
+  async function handleDeleteBeforeDate() {
+    if (!deleteBeforeDate) return;
+    if (!confirm(`Delete all orders before ${deleteBeforeDate}? This cannot be undone.`)) return;
+    const count = await deleteOrdersBeforeDate(deleteBeforeDate);
+    alert(`Deleted ${count} order${count !== 1 ? "s" : ""}.`);
+    setDeleteBeforeDate("");
+    await loadData();
+  }
 
   async function handleAddCategory(name: string) {
     if (!name.trim() || cats.some((c) => c.name.toLowerCase() === name.trim().toLowerCase())) return;
@@ -188,6 +214,39 @@ export default function OwnerPage() {
               </div>
             )}
 
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+              <div style={{ background: "var(--color-surface)", borderRadius: 12, border: "1px solid var(--color-border)", padding: 16 }}>
+                <h3 style={{ fontSize: 14, fontWeight: 800, marginBottom: 8 }}>📅 Daily Sales (Last 7)</h3>
+                {dailySales.length === 0 ? (
+                  <div style={{ fontSize: 13, color: "var(--color-text-muted)", fontWeight: 700 }}>No sales data yet.</div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    {dailySales.slice(0, 7).map((d) => (
+                      <div key={d.date} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 700 }}>
+                        <span style={{ color: "var(--color-text-secondary)" }}>{new Date(d.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</span>
+                        <span>₹{d.total} ({d.count} order{d.count > 1 ? "s" : ""})</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div style={{ background: "var(--color-surface)", borderRadius: 12, border: "1px solid var(--color-border)", padding: 16 }}>
+                <h3 style={{ fontSize: 14, fontWeight: 800, marginBottom: 8 }}>📊 Monthly Sales</h3>
+                {monthlySales.length === 0 ? (
+                  <div style={{ fontSize: 13, color: "var(--color-text-muted)", fontWeight: 700 }}>No sales data yet.</div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    {monthlySales.map((m) => (
+                      <div key={m.month} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 700 }}>
+                        <span style={{ color: "var(--color-text-secondary)" }}>{m.month}</span>
+                        <span>₹{m.total} ({m.count} order{m.count > 1 ? "s" : ""})</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div style={{ background: "var(--color-surface)", borderRadius: 12, border: "1px solid var(--color-border)", padding: 16 }}>
               <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 12 }}>Recent Orders</h3>
               {allOrders.length === 0 ? (
@@ -253,11 +312,55 @@ export default function OwnerPage() {
                     <div style={{ fontSize: 12, color: "var(--color-text-secondary)", fontWeight: 700 }}>{u.role.toUpperCase()} &middot; {u.mobileNumber}{u.status === "pending" ? " · ⏳ Pending" : ""}</div>
                   </div>
                   <span style={{ padding: "3px 10px", borderRadius: 6, fontSize: 11, fontWeight: 800, background: statusColors[u.status] || "#f3f4f6", color: "#374151" }}>{u.status.toUpperCase()}</span>
-                  <div style={{ display: "flex", gap: 6 }}>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {u.role === "seller" && (
+                      <button onClick={async () => {
+                        setViewingSeller(viewingSeller === u.mobileNumber ? null : u.mobileNumber);
+                        if (viewingSeller !== u.mobileNumber) {
+                          setSellerProducts(await getSellerProducts(u.mobileNumber));
+                          setSellerOrders(await getOrdersForSeller(u.mobileNumber));
+                        }
+                      }} style={{ padding: "6px 14px", borderRadius: 6, border: "none", background: "#f3e8ff", color: "#6d28d9", fontWeight: 800, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}>
+                        {viewingSeller === u.mobileNumber ? "▲ Hide" : "📊 View"}
+                      </button>
+                    )}
                     {u.role !== "owner" && u.status !== "approved" && <button onClick={() => handleApprove(u.mobileNumber)} style={{ padding: "6px 14px", borderRadius: 6, border: "none", background: "#22C55E", color: "white", fontWeight: 800, fontSize: 12, cursor: "pointer" }}>Approve</button>}
                     {u.role !== "owner" && u.status !== "rejected" && <button onClick={() => handleReject(u.mobileNumber)} style={{ padding: "6px 14px", borderRadius: 6, border: "none", background: "#ef4444", color: "white", fontWeight: 800, fontSize: 12, cursor: "pointer" }}>Reject</button>}
                     {u.role !== "owner" && <button onClick={() => handleDeleteUser(u.mobileNumber)} style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid #fecaca", background: "#fef2f2", color: "#991b1b", fontWeight: 800, fontSize: 12, cursor: "pointer" }}>Delete</button>}
                   </div>
+                  {viewingSeller === u.mobileNumber && (
+                    <div style={{ width: "100%", marginTop: 10, background: "#f9fafb", borderRadius: 10, padding: 14, border: "1px solid var(--color-border)" }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 8, marginBottom: 10 }}>
+                        <div style={{ background: "#e0e7ff", borderRadius: 8, padding: 10, textAlign: "center" }}>
+                          <div style={{ fontSize: 20, fontWeight: 900 }}>{sellerProducts.length}</div>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: "#4b5563" }}>Products</div>
+                        </div>
+                        <div style={{ background: "#d1fae5", borderRadius: 8, padding: 10, textAlign: "center" }}>
+                          <div style={{ fontSize: 20, fontWeight: 900 }}>{sellerOrders.filter((o) => o.status === "delivered").length}</div>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: "#4b5563" }}>Delivered</div>
+                        </div>
+                        <div style={{ background: "#f3e8ff", borderRadius: 8, padding: 10, textAlign: "center" }}>
+                          <div style={{ fontSize: 20, fontWeight: 900 }}>₹{sellerOrders.filter((o) => o.status === "delivered").reduce((s, o) => s + o.total, 0)}</div>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: "#4b5563" }}>Earnings</div>
+                        </div>
+                        <div style={{ background: "#fef3c7", borderRadius: 8, padding: 10, textAlign: "center" }}>
+                          <div style={{ fontSize: 20, fontWeight: 900 }}>{sellerOrders.filter((o) => o.status !== "delivered" && o.status !== "cancelled").length}</div>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: "#4b5563" }}>Active Orders</div>
+                        </div>
+                      </div>
+                      {sellerOrders.length > 0 && (
+                        <div>
+                          <div style={{ fontSize: 12, fontWeight: 800, color: "var(--color-text-secondary)", marginBottom: 6 }}>Recent Orders</div>
+                          {sellerOrders.slice(0, 3).map((o) => (
+                            <div key={o.id} style={{ fontSize: 12, fontWeight: 700, display: "flex", justifyContent: "space-between", padding: "4px 0", borderBottom: "1px solid var(--color-border)" }}>
+                              <span>{o.id.slice(0, 8)}... — {o.buyerName}</span>
+                              <span style={{ color: o.status === "delivered" ? "#22C55E" : o.status === "cancelled" ? "#ef4444" : "#f59e0b" }}>₹{o.total} · {o.status}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))
             )}
@@ -291,6 +394,12 @@ export default function OwnerPage() {
 
         {tab === "orders" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ display: "flex", gap: 10, alignItems: "center", background: "#fef3c7", borderRadius: 12, padding: 14, flexWrap: "wrap" }}>
+              <span style={{ fontWeight: 800, fontSize: 13, color: "#92400e" }}>🗑️ Bulk Delete:</span>
+              <input type="date" value={deleteBeforeDate} onChange={(e) => setDeleteBeforeDate(e.target.value)} style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid var(--color-border)", fontSize: 13, fontWeight: 700 }} />
+              <button onClick={handleDeleteBeforeDate} disabled={!deleteBeforeDate} style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: deleteBeforeDate ? "#ef4444" : "#d1d5db", color: "white", fontWeight: 800, fontSize: 12, cursor: deleteBeforeDate ? "pointer" : "not-allowed" }}>Delete All Before</button>
+            </div>
+
             {allOrders.length === 0 ? (
               <div style={{ textAlign: "center", padding: 60, color: "var(--color-text-muted)", fontWeight: 700, background: "var(--color-surface)", borderRadius: 12, border: "1px solid var(--color-border)" }}>No orders placed yet.</div>
             ) : (
@@ -315,16 +424,19 @@ export default function OwnerPage() {
                   <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: 10, fontSize: 13, color: "var(--color-text-secondary)", fontWeight: 700, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
                     <span>Buyer: {o.buyerName}</span>
                     <span>Phone: {o.buyerPhone}</span>
+                    <span>Payment: {o.paymentMethod === "cod" ? "Cash on Delivery" : "UPI / Online"}</span>
+                    <span>OTP: {o.otp || "N/A"}</span>
                     <span style={{ gridColumn: "1 / -1" }}>Address: {o.buyerAddress}, {o.buyerCity}, {o.buyerState} - {o.buyerPincode}</span>
                     <span style={{ gridColumn: "1 / -1", fontWeight: 900, fontSize: 16, color: "#1f2937" }}>Total: ₹{o.total}</span>
                   </div>
-                  <div style={{ marginTop: 12, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  <div style={{ marginTop: 12, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
                     {(["pending", "confirmed", "shipped", "delivered", "cancelled"] as OrderStatus[]).map((s) => (
                       <button key={s} onClick={() => handleOrderStatus(o.id, s)} style={{
                         padding: "5px 12px", borderRadius: 6, border: o.status === s ? "2px solid #1f2937" : "1px solid var(--color-border)",
                         background: statusColors[s] || "#f3f4f6", fontWeight: 800, fontSize: 11, cursor: "pointer", color: "#374151", opacity: o.status === s ? 1 : 0.7,
                       }}>{s}</button>
                     ))}
+                    <button onClick={() => handleDeleteOrder(o.id)} style={{ padding: "5px 12px", borderRadius: 6, border: "1px solid #fecaca", background: "#fef2f2", color: "#991b1b", fontWeight: 800, fontSize: 11, cursor: "pointer", marginLeft: "auto" }}>🗑️ Delete</button>
                   </div>
                 </div>
               ))

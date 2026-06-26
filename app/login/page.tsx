@@ -43,6 +43,11 @@ export default function Login() {
       .eq("id", data.user.id)
       .maybeSingle();
 
+    if (profile?.status === "rejected") {
+      setError("Your account has been rejected by the platform owner. Please contact support.");
+      return;
+    }
+
     const role = profile?.role || data.user.user_metadata?.role || "dukandar";
     const target = role === "owner" ? "/owner" : role === "seller" ? "/dashboard" : "/";
     await refresh();
