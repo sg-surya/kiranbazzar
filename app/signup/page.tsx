@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/app/context/AuthContext";
 import { addProfileFromAuth } from "@/lib/data";
 
 type Role = "seller" | "dukandar";
@@ -26,7 +28,9 @@ const inputStyle: React.CSSProperties = {
 };
 
 export default function SignUp() {
+  const router = useRouter();
   const supabase = createClient();
+  const { refresh } = useAuth();
   const [role, setRole] = useState<Role>("seller");
 
   const [nameOrDukanName, setNameOrDukanName] = useState("");
@@ -108,8 +112,9 @@ export default function SignUp() {
     }
 
     setSuccessMsg("Profile created successfully. Redirecting...");
+    await refresh();
     setTimeout(() => {
-      window.location.href = role === "seller" ? "/dashboard" : "/";
+      router.replace(role === "seller" ? "/dashboard" : "/");
     }, 1000);
   };
 

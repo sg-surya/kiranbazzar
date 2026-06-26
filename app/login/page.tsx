@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/app/context/AuthContext";
@@ -9,7 +9,13 @@ import { useAuth } from "@/app/context/AuthContext";
 export default function Login() {
   const router = useRouter();
   const supabase = createClient();
-  const { refresh } = useAuth();
+  const { loggedIn, role, refresh } = useAuth();
+
+  useEffect(() => {
+    if (!loggedIn) return;
+    const target = role === "owner" ? "/owner" : role === "seller" ? "/dashboard" : "/";
+    router.replace(target);
+  }, [loggedIn, role, router]);
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);

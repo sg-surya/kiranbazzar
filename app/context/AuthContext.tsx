@@ -1,8 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { User } from "@supabase/supabase-js";
 
 type AuthState = {
   loggedIn: boolean;
@@ -33,33 +32,28 @@ const AuthContext = createContext<AuthContextType>({
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [auth, setAuth] = useState<AuthState>(defaultAuth);
+  const [ready, setReady] = useState(false);
+  const fetching = useRef(false);
 
   async function refresh() {
+    if (fetching.current) return;
+    fetching.current = true;
     try {
       const supabase = createClient();
 
-      let user;
-      try {
-        const res = await supabase.auth.getUser();
-        user = res.data?.user;
-      } catch {
-        user = null;
-      }
+      const { data: sessionData } = await supabase.auth.getSession();
+      const sessionUser = sessionData?.session?.user ?? null;
 
-      if (!user) {
-        const { data: sessionData } = await supabase.auth.getSession();
-        user = sessionData?.session?.user ?? null;
-      }
-
-      if (!user) {
+      if (!sessionUser) {
         setAuth(defaultAuth);
+        setReady(true);
         return;
       }
 
       const { data: profile } = await supabase
         .from("profiles")
         .select("*")
-        .eq("id", user.id)
+        .eq("id", sessionUser.id)
         .maybeSingle();
 
       if (profile) {
@@ -73,14 +67,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setAuth({
           loggedIn: true,
-          role: user.user_metadata?.role || null,
-          mobile: user.user_metadata?.mobile_number || null,
-          name: user.user_metadata?.name || null,
+          role: sessionUser.user_metadata?.role || null,
+          mobile: sessionUser.user_metadata?.mobile_number || null,
+          name: sessionUser.user_metadata?.name || null,
           status: "pending",
         });
       }
     } catch {
       setAuth(defaultAuth);
+    } finally {
+      fetching.current = false;
+      setReady(true);
     }
   }
 
