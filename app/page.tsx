@@ -6,6 +6,7 @@ import React, { useState, useEffect } from "react";
 import { getAllProducts, getAllCategories, categories as staticCategories, getWishlist, toggleWishlist, type AnyProduct } from "@/lib/data";
 import { useCart } from "@/app/context/CartContext";
 import { useAuth } from "@/app/context/AuthContext";
+import { useRouter } from "next/navigation";
 
 function CategoryIcon({ type }: { type: string }) {
   const s = { width: 28, height: 28, viewBox: "0 0 24 24", fill: "none", stroke: "#22C55E", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
@@ -32,12 +33,12 @@ function CategoryIcon({ type }: { type: string }) {
 }
 
 export default function Home() {
+  const router = useRouter();
   const { totalItems } = useCart();
   const { loggedIn, status, logout } = useAuth();
   const [allProducts, setAllProducts] = useState<AnyProduct[]>([]);
   const [catList, setCatList] = useState(staticCategories);
   const [wishlist, setWishlist] = useState<string[]>([]);
-  const [search, setSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [activeCat, setActiveCat] = useState("");
   const [loading, setLoading] = useState(true);
@@ -49,10 +50,8 @@ export default function Home() {
   }, []);
 
   const filtered = allProducts.filter((prod) => {
-    const q = search.toLowerCase().trim();
-    const matchSearch = !q || prod.name.toLowerCase().includes(q) || ("brand" in prod && (prod as any).brand?.toLowerCase().includes(q)) || prod.category?.toLowerCase().includes(q);
     const matchCat = !activeCat || prod.category === activeCat;
-    return matchSearch && matchCat;
+    return matchCat;
   });
 
   if (loggedIn && status === "rejected") {
@@ -96,7 +95,7 @@ export default function Home() {
             </svg>
           </button>
           {searchOpen && (
-            <input type="text" placeholder="Search products, brands and more" value={search} onChange={(e) => setSearch(e.target.value)} autoFocus onBlur={() => { if (!search) setSearchOpen(false); }} style={{ marginLeft: 8 }} />
+            <input type="text" placeholder="Search products, brands and more" autoFocus onKeyDown={(e) => { if (e.key === "Enter" && e.currentTarget.value.trim()) { router.push(`/search?q=${encodeURIComponent(e.currentTarget.value.trim())}`); } }} onBlur={(e) => { if (!e.currentTarget.value) setSearchOpen(false); }} style={{ marginLeft: 8, border: "none", background: "transparent", outline: "none", fontSize: 14, fontWeight: 600, flex: 1, color: "var(--color-text)" }} />
           )}
         </div>
         <div className="kb-actions">
@@ -190,7 +189,7 @@ export default function Home() {
               <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
             <p style={{ fontWeight: 700, fontSize: 15 }}>No products found</p>
-            <p style={{ fontSize: 13, marginTop: 4 }}>{search ? "Try a different search term" : "No products in this category"}</p>
+            <p style={{ fontSize: 13, marginTop: 4 }}>No products in this category</p>
           </div>
         ) : (
         <div className="meesho-product-grid">
