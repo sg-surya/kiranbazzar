@@ -51,7 +51,10 @@ export async function saveAllCategories(cats: Category[]): Promise<void> {
     await supabase.from("categories").delete().neq("name", "__nonexistent__");
     const { error } = await supabase.from("categories").insert(cats.map((c) => ({ name: c.name, icon: c.icon })));
     if (error) throw error;
-  } catch {}
+  } catch (e) {
+    console.error("saveAllCategories error:", e);
+    throw e;
+  }
 }
 
 export type PlatformSettings = {

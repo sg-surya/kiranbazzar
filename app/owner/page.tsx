@@ -443,30 +443,6 @@ export default function OwnerPage() {
                     {u.role !== "owner" && u.status !== "rejected" && <button onClick={() => handleReject(u.mobileNumber)} className="btn-premium btn-premium-danger btn-premium-sm" style={{ display: "flex", alignItems: "center", gap: 4 }}><IconX /> Reject</button>}
                     {u.role !== "owner" && <button onClick={() => handleDeleteUser(u.mobileNumber)} className="btn-premium btn-premium-ghost btn-premium-sm" style={{ display: "flex", alignItems: "center", gap: 4, color: "#991b1b" }}><IconTrash /> Delete</button>}
                   </div>
-                  <div style={{ flex: 1, minWidth: 160 }}>
-                    <div style={{ fontWeight: 800, fontSize: 14 }}>{u.name || u.dukanName || "Unknown"}</div>
-                    <div style={{ fontSize: 12, color: "var(--color-text-secondary)", fontWeight: 600 }}>
-                      <span style={{ color: u.role === "owner" ? "#d97706" : u.role === "seller" ? "#2563eb" : "#059669", fontWeight: 800 }}>{u.role.toUpperCase()}</span> &middot; {u.mobileNumber}
-                      {u.status === "pending" ? <span style={{ color: "#d97706", marginLeft: 6 }}>&middot; Pending</span> : ""}
-                    </div>
-                  </div>
-                  <span style={{ padding: "3px 10px", borderRadius: 8, fontSize: 11, fontWeight: 800, background: statusColors[u.status] || "#f3f4f6", color: "#374151" }}>{u.status.toUpperCase()}</span>
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    {u.role === "seller" && (
-                      <button onClick={async () => {
-                        setViewingSeller(viewingSeller === u.mobileNumber ? null : u.mobileNumber);
-                        if (viewingSeller !== u.mobileNumber) {
-                          setSellerProducts(await getSellerProducts(u.mobileNumber));
-                          setSellerOrders(await getOrdersForSeller(u.mobileNumber));
-                        }
-                      }} className="btn-premium btn-premium-ghost btn-premium-sm" style={{ background: "#f3e8ff", color: "#6d28d9", border: "none" }}>
-                        {viewingSeller === u.mobileNumber ? "Hide" : <><IconEye /> View</>}
-                      </button>
-                    )}
-                    {u.role !== "owner" && u.status !== "approved" && <button onClick={() => handleApprove(u.mobileNumber)} className="btn-premium btn-premium-primary btn-premium-sm" style={{ display: "flex", alignItems: "center", gap: 4 }}><IconCheck /> Approve</button>}
-                    {u.role !== "owner" && u.status !== "rejected" && <button onClick={() => handleReject(u.mobileNumber)} className="btn-premium btn-premium-danger btn-premium-sm" style={{ display: "flex", alignItems: "center", gap: 4 }}><IconX /> Reject</button>}
-                    {u.role !== "owner" && <button onClick={() => handleDeleteUser(u.mobileNumber)} className="btn-premium btn-premium-ghost btn-premium-sm" style={{ display: "flex", alignItems: "center", gap: 4, color: "#991b1b" }}><IconTrash /> Delete</button>}
-                  </div>
                   {viewingSeller === u.mobileNumber && (
                     <div className="fade-in" style={{ width: "100%", marginTop: 8, background: "var(--color-bg)", borderRadius: 12, padding: 14 }}>
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 8, marginBottom: 10 }}>

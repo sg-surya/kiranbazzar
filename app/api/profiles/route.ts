@@ -59,6 +59,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "mobile_number, password, and role are required" }, { status: 400 });
     }
 
+    // Check if user already exists by mobile number
+    const { data: existingProfile } = await supabase
+      .from("profiles")
+      .select("id, mobile_number")
+      .eq("mobile_number", mobile_number)
+      .maybeSingle();
+
+    if (existingProfile) {
+      return NextResponse.json({ error: "A user with this mobile number already exists." }, { status: 400 });
+    }
+
     const email = `${mobile_number}@kbuser.local`;
 
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
@@ -89,6 +100,7 @@ export async function POST(request: NextRequest) {
       role,
       mobile_number,
       status: status || "approved",
+      is_active: true,
       name: role === "seller" ? name : null,
       dukan_name: role === "dukandar" ? (dukan_name || name) : null,
       address: address || "N/A",

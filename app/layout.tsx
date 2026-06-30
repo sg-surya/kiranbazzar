@@ -18,8 +18,8 @@ export const metadata: Metadata = {
   description: "Shop groceries, household essentials and more at the lowest prices with free delivery. Kirana Bazzar — your trusted online kirana store.",
   manifest: "/manifest.json",
   icons: [
-    { rel: "icon", url: "/icon.svg", type: "image/svg+xml" },
-    { rel: "apple-touch-icon", url: "/icon.svg" },
+    { rel: "icon", url: "/icon.jpeg", type: "image/jpeg" },
+    { rel: "apple-touch-icon", url: "/icon.jpeg" },
   ],
   appleWebApp: {
     capable: true,
@@ -43,7 +43,7 @@ export default function RootLayout({
         <meta name="theme-color" content="#059669" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <link rel="apple-touch-icon" href="/icon.svg" />
+        <link rel="apple-touch-icon" href="/icon.jpeg" />
       </head>
       <body suppressHydrationWarning>
         <AuthProvider>

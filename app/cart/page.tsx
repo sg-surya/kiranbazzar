@@ -219,9 +219,6 @@ export default function CartPage() {
         </div>
       </div>
 
-      {/* Spacer for bottom bar */}
-      <div style={{ height: 80 }} />
-
       {/* Fixed Bottom */}
       <div className="cart-bottom-bar glass-strong">
         <div className="cart-bottom-price">

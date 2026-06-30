@@ -52,7 +52,7 @@ interface BottomNavProps {
 
 export default function BottomNav({ items = defaultItems }: BottomNavProps) {
   const pathname = usePathname();
-  const hideOn = ["/login", "/signup", "/dashboard", "/owner", "/checkout", "/product/"];
+  const hideOn = ["/login", "/signup", "/dashboard", "/owner", "/checkout", "/product/", "/cart"];
   if (hideOn.some((p) => pathname.startsWith(p) && p !== "/")) return null;
   if (pathname === "/login" || pathname === "/signup" || pathname === "/dashboard" || pathname === "/owner") return null;
 
