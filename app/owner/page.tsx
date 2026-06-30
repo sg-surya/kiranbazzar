@@ -9,6 +9,7 @@ import {
   getAllOrders,
   getAllUsers,
   updateUserStatus,
+  toggleUserActiveStatus,
   updateOrderStatus,
   deleteSellerProduct,
   getAllCategories,
@@ -91,6 +92,7 @@ export default function OwnerPage() {
   const [sellerOrders, setSellerOrders] = useState<Order[]>([]);
   const [deleteBeforeDate, setDeleteBeforeDate] = useState("");
   const [showSettings, setShowSettings] = useState(false);
+  const [addUserError, setAddUserError] = useState<string | null>(null);
 
   async function loadData() {
     setUsers(await getAllUsers());
@@ -127,6 +129,7 @@ export default function OwnerPage() {
       alert("A user with this mobile number already exists.");
       return;
     }
+    setAddUserError(null);
     const wa = newUser.whatsapp.replace(/\D/g, "");
     const profile: StoredUser = {
       role: newUser.role,
@@ -139,10 +142,14 @@ export default function OwnerPage() {
       pincode: newUser.pincode || "000000",
       whatsappNumber: wa.length >= 10 ? wa : undefined,
     };
-    await saveUser(profile);
-    setShowAddUser(false);
-    setNewUser({ role: "seller", name: "", mobile: "", whatsapp: "", password: "", address: "", pincode: "", status: "approved" });
-    await loadData();
+    try {
+      await saveUser(profile);
+      setShowAddUser(false);
+      setNewUser({ role: "seller", name: "", mobile: "", whatsapp: "", password: "", address: "", pincode: "", status: "approved" });
+      await loadData();
+    } catch (e) {
+      setAddUserError(e instanceof Error ? e.message : "Failed to create user");
+    }
   }
 
   async function handleDeleteUser(mobile: string) {
@@ -362,6 +369,11 @@ export default function OwnerPage() {
             {showAddUser && (
               <div className="glass-card fade-in" style={{ padding: 20, display: "flex", flexDirection: "column", gap: 12, border: "none" }}>
                 <h4 style={{ fontSize: 15, fontWeight: 800 }}>Add New User</h4>
+                {addUserError && (
+                  <div style={{ background: "var(--color-danger-light)", color: "#991b1b", border: "1px solid rgba(239, 68, 68, 0.35)", padding: "10px 12px", borderRadius: 10, fontWeight: 800, fontSize: 13 }}>
+                    {addUserError}
+                  </div>
+                )}
                 <div style={{ display: "flex", gap: 10 }}>
                   <button onClick={() => setNewUser({ ...newUser, role: "seller" })} className="btn-premium btn-premium-sm" style={{ flex: 1, border: `2px solid ${newUser.role === "seller" ? "var(--color-primary)" : "var(--color-border)"}`, background: newUser.role === "seller" ? "var(--color-primary-lighter)" : "white", color: "#374151" }}>Seller</button>
                   <button onClick={() => setNewUser({ ...newUser, role: "dukandar" })} className="btn-premium btn-premium-sm" style={{ flex: 1, border: `2px solid ${newUser.role === "dukandar" ? "var(--color-primary)" : "var(--color-border)"}`, background: newUser.role === "dukandar" ? "var(--color-primary-lighter)" : "white", color: "#374151" }}>Dukandar</button>
@@ -384,13 +396,52 @@ export default function OwnerPage() {
               </div>
             )}
 
-            {users.length === 0 ? (
+{users.length === 0 ? (
               <div className="glass-card" style={{ textAlign: "center", padding: 60, color: "var(--color-text-muted)", fontWeight: 700, border: "none" }}>No users registered.</div>
             ) : (
               users.map((u) => (
                 <div key={u.mobileNumber} className="glass-card fade-in" style={{ padding: 14, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", border: "none" }}>
                   <div style={{ width: 42, height: 42, borderRadius: 12, background: u.role === "owner" ? "linear-gradient(135deg, #fef3c7, #fde68a)" : u.role === "seller" ? "linear-gradient(135deg, #dbeafe, #bfdbfe)" : "linear-gradient(135deg, #d1fae5, #a7f3d0)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 16, color: "#374151", flexShrink: 0 }}>
                     {(u.name || u.dukanName || "?").slice(0, 1).toUpperCase()}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 160 }}>
+                    <div style={{ fontWeight: 800, fontSize: 14 }}>{u.name || u.dukanName || "Unknown"}</div>
+                    <div style={{ fontSize: 12, color: "var(--color-text-secondary)", fontWeight: 600 }}>
+                      <span style={{ color: u.role === "owner" ? "#d97706" : u.role === "seller" ? "#2563eb" : "#059669", fontWeight: 800 }}>{u.role.toUpperCase()}</span> &middot; {u.mobileNumber}
+                      {u.status === "pending" ? <span style={{ color: "#d97706", marginLeft: 6 }}>&middot; Pending</span> : ""}
+                      {u.role === "seller" && (u.isActive === false ? <span style={{ color: "#ef4444", marginLeft: 6 }}>&middot; Inactive</span> : <span style={{ color: "#059669", marginLeft: 6 }}>&middot; Active</span>)}
+                    </div>
+                  </div>
+                  <span style={{ padding: "3px 10px", borderRadius: 8, fontSize: 11, fontWeight: 800, background: statusColors[u.status] || "#f3f4f6", color: "#374151" }}>{u.status.toUpperCase()}</span>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {u.role === "seller" && (
+                      <button onClick={async () => {
+                        await toggleUserActiveStatus(u.mobileNumber, !(u.isActive !== false));
+                        await loadData();
+                      }} className="btn-premium btn-premium-sm" style={{ 
+                        background: u.isActive === false ? "linear-gradient(135deg, #fef2f2, #fee2e2)" : "linear-gradient(135deg, #d1fae5, #a7f3d0)", 
+                        color: u.isActive === false ? "#991b1b" : "#059669",
+                        border: "none",
+                        fontWeight: 800,
+                        fontSize: 11,
+                      }}>
+                        {u.isActive === false ? "Activate" : "Deactivate"}
+                      </button>
+                    )}
+                    {u.role === "seller" && (
+                      <button onClick={async () => {
+                        setViewingSeller(viewingSeller === u.mobileNumber ? null : u.mobileNumber);
+                        if (viewingSeller !== u.mobileNumber) {
+                          setSellerProducts(await getSellerProducts(u.mobileNumber));
+                          setSellerOrders(await getOrdersForSeller(u.mobileNumber));
+                        }
+                      }} className="btn-premium btn-premium-ghost btn-premium-sm" style={{ background: "#f3e8ff", color: "#6d28d9", border: "none" }}>
+                        {viewingSeller === u.mobileNumber ? "Hide" : <><IconEye /> View</>}
+                      </button>
+                    )}
+                    {u.role !== "owner" && u.status !== "approved" && <button onClick={() => handleApprove(u.mobileNumber)} className="btn-premium btn-premium-primary btn-premium-sm" style={{ display: "flex", alignItems: "center", gap: 4 }}><IconCheck /> Approve</button>}
+                    {u.role !== "owner" && u.status !== "rejected" && <button onClick={() => handleReject(u.mobileNumber)} className="btn-premium btn-premium-danger btn-premium-sm" style={{ display: "flex", alignItems: "center", gap: 4 }}><IconX /> Reject</button>}
+                    {u.role !== "owner" && <button onClick={() => handleDeleteUser(u.mobileNumber)} className="btn-premium btn-premium-ghost btn-premium-sm" style={{ display: "flex", alignItems: "center", gap: 4, color: "#991b1b" }}><IconTrash /> Delete</button>}
                   </div>
                   <div style={{ flex: 1, minWidth: 160 }}>
                     <div style={{ fontWeight: 800, fontSize: 14 }}>{u.name || u.dukanName || "Unknown"}</div>

@@ -6,6 +6,7 @@ import { AuthProvider } from "./context/AuthContext";
 import BottomNavWrapper from "./BottomNavWrapper";
 import PwaSetup from "./PwaSetup";
 import SplashScreen from "@/components/SplashScreen";
+import ClickSoundProvider from "@/components/ClickSoundProvider";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -47,10 +48,12 @@ export default function RootLayout({
       <body suppressHydrationWarning>
         <AuthProvider>
           <CartProvider>
-            <SplashScreen />
-            {children}
-            <BottomNavWrapper />
-            <PwaSetup />
+            <ClickSoundProvider>
+              <SplashScreen />
+              {children}
+              <BottomNavWrapper />
+              <PwaSetup />
+            </ClickSoundProvider>
           </CartProvider>
         </AuthProvider>
       </body>

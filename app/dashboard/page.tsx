@@ -29,16 +29,19 @@ import {
 } from "@/lib/data";
 
 const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
-const MAX_VIDEO_SIZE = 10 * 1024 * 1024;
+const MAX_VIDEO_SIZE = 50 * 1024 * 1024;
 
-function readFileAsDataURL(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
+async function deleteFile(path: string, type: "image" | "video"): Promise<void> {
+  const res = await fetch(`/api/upload?path=${encodeURIComponent(path)}&type=${type}`, {
+    method: "DELETE",
   });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || "Delete failed");
+  }
 }
+
+type VideoFile = { name: string; url: string; path?: string; isNew?: boolean; preview?: string };
 
 type Tab = "overview" | "products" | "orders" | "settings";
 
@@ -83,7 +86,7 @@ export default function DashboardPage() {
     highlights: "",
   });
   const [imgPreview, setImgPreview] = useState<string | null>(null);
-  const [videoFiles, setVideoFiles] = useState<{ name: string; data: string }[]>([]);
+  const [videoFiles, setVideoFiles] = useState<VideoFile[]>([]);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -147,12 +150,12 @@ export default function DashboardPage() {
       price: Number(productForm.price),
       mrp: Number(productForm.mrp),
       img: imgPreview || productForm.img || "/product_atta.png",
-      videos: videoFiles.map((v) => v.data),
+      videos: videoFiles.map((v) => v.url),
       category: productForm.category,
       unit: productForm.unit,
       brand: productForm.brand.trim(),
       stock: Math.max(0, Number(productForm.stock) || 0),
-      soldCount: 0,
+      soldCount: editingId ? (products.find((p) => p.id === editingId)?.soldCount || 0) : 0,
       sku: productForm.sku.trim(),
       tags: productForm.tags.split(",").map((t) => t.trim()).filter(Boolean),
       highlights: productForm.highlights.split("\n").map((h) => h.trim()).filter(Boolean),
@@ -194,7 +197,7 @@ export default function DashboardPage() {
       highlights: p.highlights.join("\n"),
     });
     setImgPreview(p.img);
-    setVideoFiles(p.videos.map((v) => ({ name: "video.mp4", data: v })));
+    setVideoFiles(p.videos.map((v) => ({ name: "video.mp4", url: v })));
     setEditingId(p.id);
     setTab("products");
   }
@@ -218,8 +221,21 @@ export default function DashboardPage() {
     if (!file) return;
     if (!file.type.startsWith("image/")) { alert("Please select an image file."); return; }
     if (file.size > MAX_IMAGE_SIZE) { alert("Image too large. Max 2MB allowed."); return; }
-    const data = await readFileAsDataURL(file);
-    setImgPreview(data);
+    if (!mobile) { alert("Seller mobile not found"); return; }
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("type", "image");
+    formData.append("sellerMobile", mobile);
+
+    const res = await fetch("/api/upload", { method: "POST", body: formData });
+    if (!res.ok) {
+      const data = await res.json();
+      alert(data.error || "Upload failed");
+      return;
+    }
+    const { url } = await res.json();
+    setImgPreview(url);
   }
 
   function handleRemoveImage() { setImgPreview(null); }
@@ -227,18 +243,36 @@ export default function DashboardPage() {
   async function handleVideoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-    const newVideos = [...videoFiles];
+    if (!mobile) { alert("Seller mobile not found"); return; }
+
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       if (!file.type.startsWith("video/")) { alert(`"${file.name}" is not a video file.`); continue; }
-      if (file.size > MAX_VIDEO_SIZE) { alert(`"${file.name}" is too large. Max 10MB per video.`); continue; }
-      const data = await readFileAsDataURL(file);
-      newVideos.push({ name: file.name, data });
+      if (file.size > MAX_VIDEO_SIZE) { alert(`"${file.name}" is too large. Max 50MB per video.`); continue; }
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("type", "video");
+      formData.append("sellerMobile", mobile);
+
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || "Upload failed");
+        continue;
+      }
+      const { url, path } = await res.json();
+      setVideoFiles((prev) => [...prev, { name: file.name, url, path }]);
     }
-    setVideoFiles(newVideos);
   }
 
-  function handleRemoveVideo(index: number) { setVideoFiles((prev) => prev.filter((_, i) => i !== index)); }
+  function handleRemoveVideo(index: number) {
+    const video = videoFiles[index];
+    if (video.path) {
+      deleteFile(video.path, "video").catch(() => {});
+    }
+    setVideoFiles((prev) => prev.filter((_, i) => i !== index));
+  }
 
   async function handleOrderStatusChange(orderId: string, status: OrderStatus) {
     await updateOrderStatus(orderId, status);

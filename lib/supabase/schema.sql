@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   mobile_number TEXT UNIQUE,
   whatsapp_number TEXT,
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  is_active BOOLEAN DEFAULT true,
   photo TEXT DEFAULT '',
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -80,6 +81,8 @@ CREATE TABLE IF NOT EXISTS orders (
   buyer_city TEXT DEFAULT '',
   buyer_state TEXT DEFAULT '',
   buyer_pincode TEXT DEFAULT '',
+  buyer_latitude DECIMAL(10, 8),
+  buyer_longitude DECIMAL(11, 8),
   buyer_photo TEXT DEFAULT '',
   total DECIMAL(10,2) NOT NULL,
   status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'shipped', 'delivered', 'cancelled')),

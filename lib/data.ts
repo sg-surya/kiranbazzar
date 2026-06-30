@@ -223,6 +223,8 @@ export type Order = {
   buyerCity: string;
   buyerState: string;
   buyerPincode: string;
+  buyerLatitude?: number;
+  buyerLongitude?: number;
   buyerPhoto: string;
   total: number;
   status: OrderStatus;
@@ -249,6 +251,8 @@ export async function saveOrder(order: Order): Promise<boolean> {
     buyer_city: order.buyerCity,
     buyer_state: order.buyerState,
     buyer_pincode: order.buyerPincode,
+    buyer_latitude: order.buyerLatitude || null,
+    buyer_longitude: order.buyerLongitude || null,
     buyer_photo: order.buyerPhoto,
     total: order.total,
     status: order.status,
@@ -267,6 +271,8 @@ export async function saveOrder(order: Order): Promise<boolean> {
       buyer_city: order.buyerCity,
       buyer_state: order.buyerState,
       buyer_pincode: order.buyerPincode,
+      buyer_latitude: order.buyerLatitude || null,
+      buyer_longitude: order.buyerLongitude || null,
       buyer_photo: order.buyerPhoto,
       total: order.total,
       status: order.status,
@@ -555,6 +561,7 @@ export type StoredUser = {
   mobileNumber: string;
   whatsappNumber?: string;
   status: UserStatus;
+  isActive?: boolean;
 };
 
 export async function getAllUsers(): Promise<StoredUser[]> {
@@ -580,11 +587,15 @@ export async function saveUser(user: StoredUser): Promise<void> {
     status: user.status,
     password: user.password,
   };
-  await fetch("/api/profiles", {
+  const res = await fetch("/api/profiles", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(row),
   });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || "Failed to create user");
+  }
 }
 
 export async function updateUserStatus(mobile: string, status: UserStatus): Promise<void> {
@@ -592,6 +603,14 @@ export async function updateUserStatus(mobile: string, status: UserStatus): Prom
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ mobile_number: mobile, updates: { status } }),
+  });
+}
+
+export async function toggleUserActiveStatus(mobile: string, isActive: boolean): Promise<void> {
+  await fetch("/api/profiles", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mobile_number: mobile, updates: { is_active: isActive } }),
   });
 }
 
@@ -674,6 +693,30 @@ export function isInWishlist(productId: string): boolean {
   return getWishlist().includes(productId);
 }
 
+/* ── Dislikes ──────────────────────────────────────── */
+
+const LS_DISLIKE_KEY = "kb_dislikes";
+
+export function getDislikes(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    return JSON.parse(localStorage.getItem(LS_DISLIKE_KEY) || "[]");
+  } catch { return []; }
+}
+
+export function toggleDislike(productId: string): string[] {
+  const list = getDislikes();
+  const idx = list.indexOf(productId);
+  if (idx >= 0) list.splice(idx, 1);
+  else list.push(productId);
+  localStorage.setItem(LS_DISLIKE_KEY, JSON.stringify(list));
+  return list;
+}
+
+export function isDisliked(productId: string): boolean {
+  return getDislikes().includes(productId);
+}
+
 /* ── Mapping helpers ──────────────────────────────── */
 
 function mapProfileToUser(p: any): StoredUser {
@@ -687,6 +730,7 @@ function mapProfileToUser(p: any): StoredUser {
     mobileNumber: p.mobile_number || "",
     whatsappNumber: p.whatsapp_number || undefined,
     status: p.status || "pending",
+    isActive: p.is_active !== false,
   };
 }
 
@@ -743,6 +787,8 @@ function mapOrder(o: any): Order {
     buyerCity: o.buyer_city || "",
     buyerState: o.buyer_state || "",
     buyerPincode: o.buyer_pincode || "",
+    buyerLatitude: o.buyer_latitude ? Number(o.buyer_latitude) : undefined,
+    buyerLongitude: o.buyer_longitude ? Number(o.buyer_longitude) : undefined,
     buyerPhoto: o.buyer_photo || "",
     total: Number(o.total),
     status: o.status || "pending",

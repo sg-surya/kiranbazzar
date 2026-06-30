@@ -3,7 +3,7 @@
 import React, { use, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { getAnyProductById, getWishlist, toggleWishlist, type AnyProduct } from "@/lib/data";
+import { getAnyProductById, getWishlist, toggleWishlist, getDislikes, toggleDislike, type AnyProduct } from "@/lib/data";
 import { useCart } from "@/app/context/CartContext";
 import { useRouter } from "next/navigation";
 import { playClickSound } from "@/lib/sounds";
@@ -18,6 +18,7 @@ export default function ProductPage({
   const { addItem, totalItems } = useCart();
   const router = useRouter();
   const [liked, setLiked] = React.useState(false);
+  const [disliked, setDisliked] = React.useState(false);
 
   useEffect(() => {
     getAnyProductById(id).then((p) => setProduct(p ?? null));
@@ -25,6 +26,7 @@ export default function ProductPage({
 
   useEffect(() => {
     setLiked(getWishlist().includes(id));
+    setDisliked(getDislikes().includes(id));
   }, [id]);
 
   const discount = product ? Math.round(((product.mrp - product.price) / product.mrp) * 100) : 0;
@@ -95,6 +97,11 @@ export default function ProductPage({
           <button className="pdp-icon-btn" aria-label={liked ? "Remove from wishlist" : "Add to wishlist"} onClick={() => setLiked(toggleWishlist(id).includes(id))}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill={liked ? "#ef4444" : "none"} stroke={liked ? "#ef4444" : "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+            </svg>
+          </button>
+          <button className="pdp-icon-btn" aria-label={disliked ? "Remove dislike" : "Dislike"} onClick={() => setDisliked(toggleDislike(id).includes(id))}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill={disliked ? "#ef4444" : "none"} stroke={disliked ? "#ef4444" : "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10 18a5 5 0 0 0 4-4v-6a3 3 0 0 0-3-3H5a3 3 0 0 0-3 3v12" />
             </svg>
           </button>
           <button className="pdp-icon-btn" aria-label="Share">

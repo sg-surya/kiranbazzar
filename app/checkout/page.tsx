@@ -180,6 +180,19 @@ export default function CheckoutPage() {
     setPlacing(true);
     setOrderError("");
 
+    // Get user's location
+    let latitude: number | undefined;
+    let longitude: number | undefined;
+    try {
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000, enableHighAccuracy: true });
+      });
+      latitude = pos.coords.latitude;
+      longitude = pos.coords.longitude;
+    } catch {
+      // Location permission denied or unavailable
+    }
+
     const id = crypto.randomUUID();
     const otp = generateOTP();
 
@@ -200,6 +213,8 @@ export default function CheckoutPage() {
       buyerCity: form.city.trim(),
       buyerState: form.state.trim(),
       buyerPincode: form.pincode.trim(),
+      buyerLatitude: latitude,
+      buyerLongitude: longitude,
       buyerPhoto: dukanPhoto,
       total: totalPrice,
       status: "pending",

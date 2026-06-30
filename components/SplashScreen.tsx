@@ -15,7 +15,11 @@ function shouldShowSplash(): boolean {
 }
 
 export default function SplashScreen() {
-  const [show, setShow] = useState(shouldShowSplash);
+  const [show, setShow] = useState(false);
+
+  useEffect(() => {
+    setShow(shouldShowSplash());
+  }, []);
 
   useEffect(() => {
     if (!show) return;
