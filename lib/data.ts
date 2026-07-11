@@ -569,7 +569,7 @@ export type StoredUser = {
 
 export async function getAllUsers(): Promise<StoredUser[]> {
   try {
-    const res = await fetch("/api/profiles");
+    const res = await fetch("/api/profiles", { cache: "no-store" });
     if (!res.ok) return [];
     const data = await res.json();
     return (data || []).map(mapProfileToUser);
@@ -618,7 +618,11 @@ export async function toggleUserActiveStatus(mobile: string, isActive: boolean):
 }
 
 export async function deleteUser(mobile: string): Promise<void> {
-  await fetch(`/api/profiles?mobile=${encodeURIComponent(mobile)}`, { method: "DELETE" });
+  const res = await fetch(`/api/profiles?mobile=${encodeURIComponent(mobile)}`, { method: "DELETE" });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || "Failed to delete user");
+  }
 }
 
 export async function getProfileByMobile(mobile: string): Promise<Record<string, any> | null> {

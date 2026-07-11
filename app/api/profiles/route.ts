@@ -40,8 +40,31 @@ export async function DELETE(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const mobile = searchParams.get("mobile");
     if (!mobile) return NextResponse.json({ error: "mobile param required" }, { status: 400 });
-    const { error } = await supabase.from("profiles").delete().eq("mobile_number", mobile);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id, role")
+      .eq("mobile_number", mobile)
+      .maybeSingle();
+    if (!profile) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+    const userId = profile.id;
+
+    await supabase.from("store_settings").delete().eq("seller_mobile", mobile);
+    await supabase.from("seller_products").delete().eq("seller_mobile", mobile);
+
+    const { data: orders } = await supabase
+      .from("orders")
+      .select("id")
+      .or(`buyer_phone.eq.${mobile},items->0->>sellerMobile.eq.${mobile}`);
+    if (orders && orders.length > 0) {
+      await supabase.from("orders").delete().in("id", orders.map((o) => o.id));
+    }
+
+    await supabase.from("profiles").delete().eq("id", userId);
+
+    await supabase.auth.admin.deleteUser(userId);
+
     return NextResponse.json({ success: true });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
@@ -100,7 +123,6 @@ export async function POST(request: NextRequest) {
       role,
       mobile_number,
       status: status || "approved",
-      is_active: true,
       name: role === "seller" ? name : null,
       dukan_name: role === "dukandar" ? (dukan_name || name) : null,
       address: address || "N/A",
@@ -108,7 +130,7 @@ export async function POST(request: NextRequest) {
       whatsapp_number: whatsapp_number || null,
     };
 
-    const { error: profileError } = await supabase.from("profiles").insert(profileData);
+    const { error: profileError } = await supabase.from("profiles").upsert(profileData);
     if (profileError) {
       await supabase.auth.admin.deleteUser(userId);
       return NextResponse.json({ error: profileError.message }, { status: 500 });

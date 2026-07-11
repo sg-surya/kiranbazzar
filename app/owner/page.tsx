@@ -144,9 +144,9 @@ export default function OwnerPage() {
     };
     try {
       await saveUser(profile);
+      await loadData();
       setShowAddUser(false);
       setNewUser({ role: "seller", name: "", mobile: "", whatsapp: "", password: "", address: "", pincode: "", status: "approved" });
-      await loadData();
     } catch (e) {
       setAddUserError(e instanceof Error ? e.message : "Failed to create user");
     }
@@ -392,7 +392,7 @@ export default function OwnerPage() {
                   </select>
                 </div>
                 <input value={newUser.address} onChange={(e) => setNewUser({ ...newUser, address: e.target.value })} placeholder="Address" style={inputStyle} />
-                <button onClick={handleAddUser} className="btn-premium btn-premium-primary" style={{ alignSelf: "flex-end" }}>Create User</button>
+                <button type="button" onClick={handleAddUser} className="btn-premium btn-premium-primary" style={{ alignSelf: "flex-end" }}>Create User</button>
               </div>
             )}
 
